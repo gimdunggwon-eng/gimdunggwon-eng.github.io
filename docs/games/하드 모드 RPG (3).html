@@ -1,0 +1,2386 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<filter id="shade" x="-8%" y="-8%" width="116%" height="116%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="4.5" diffuseConstant="1.18" lighting-color="#fff" result="diff"><feDistantLight azimuth="235" elevation="58"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="diff" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="lit"/>
+ <feSpecularLighting in="b" surfaceScale="4.5" specularConstant=".7" specularExponent="26" lighting-color="#fff" result="spec"><feDistantLight azimuth="235" elevation="52"/></feSpecularLighting>
+ <feComposite in="spec" in2="SourceAlpha" operator="in" result="specIn"/>
+ <feComposite in="lit" in2="specIn" operator="arithmetic" k1="0" k2="1" k3=".55" k4="0"/>
+</filter></defs></svg>
+<title>하드 모드 RPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: 한 열 콘솔. 위에서부터 HUD → 스테이지(배경 + 두 전사 + 이펙트) → 행동 버튼 → 로그.
+   밤하늘 단일 테마로 의도적으로 고정한다. */
+:root {
+  --bg: #100e1b;
+  --surface: #1b1830;
+  --surface-2: #272243;
+  --line: #3a3463;
+  --fg: #ece6d6;
+  --muted: #a49dc2;
+  --ember: #f0a43a;
+  --ember-ink: #2a1a04;
+  --blood: #e0533f;
+  --hp: #5ec58a;
+  --mana: #5aa7f0;
+  --rage: #e0533f;
+  --shield: #c3cde8;
+  --font-display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55; padding-inline: 16px; padding-block: 18px 40px; }
+#app { max-width: 780px; margin-inline: auto; display: flex; flex-direction: column; gap: 14px; }
+.screen { display: flex; flex-direction: column; gap: 16px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, .pick:focus-within, input:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.y-blade { opacity: 0; transition: opacity .06s; } .y-hilt { transition: opacity .06s; } .drawn .y-blade { opacity: 1; } .drawn .y-hilt { opacity: 0; }
+.o { stroke: #0d0a16; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.art { display: block; width: 100%; height: auto; overflow: visible; filter: url(#shade) drop-shadow(0 5px 5px rgba(0,0,0,.38)); }
+
+/* ---------- 아트 대기 모션 ---------- */
+.bob { animation: bob 2.6s ease-in-out infinite; transform-origin: 100px 206px; }
+@keyframes bob { 50% { transform: translateY(-3px) scaleY(1.018); } }
+.sway { animation: sway 3.2s ease-in-out infinite; }
+@keyframes sway { 50% { transform: rotate(-4deg) skewX(2deg); } }
+.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.2); opacity: .65; } }
+.slimeb { animation: squish 1.8s ease-in-out infinite; transform-origin: 100px 206px; }
+@keyframes squish { 0%, 100% { transform: scale(1.04, .95); } 50% { transform: scale(.96, 1.06); } }
+.wing { animation: flap 2.2s ease-in-out infinite; }
+@keyframes flap { 50% { transform: rotate(-13deg); } }
+.tail { animation: tailw 3s ease-in-out infinite; }
+@keyframes tailw { 50% { transform: rotate(5deg); } }
+.halo { animation: halo 3s ease-in-out infinite; filter: drop-shadow(0 0 4px #ffe27a); }
+@keyframes halo { 50% { transform: translateY(-4px); } }
+.blink { animation: blink 4.5s infinite; }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+@media (prefers-reduced-motion: reduce) { .bob, .sway, .pulse, .slimeb, .wing, .tail, .halo, .blink { animation: none; } }
+
+/* ---------- 공통 패널 ---------- */
+.eyebrow { margin: 0 0 6px; font-size: 12px; letter-spacing: .14em; color: var(--ember); font-weight: 700; }
+h1 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(34px, 8vw, 54px); line-height: 1.1; text-wrap: balance; text-shadow: 0 2px 0 #000, 0 0 30px rgba(240,164,58,.45); }
+h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 24px; text-wrap: balance; }
+.lead { margin: 6px 0 0; color: var(--muted); max-width: 54ch; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.panel > h3 { margin: 0; font-size: 12px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+label.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+input[type=text] { background: var(--bg); border: 1px solid var(--line); color: var(--fg); border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 16px; width: 100%; }
+.btn { background: var(--ember); color: var(--ember-ink); border: 0; border-radius: 10px; padding: 13px 24px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 0 #a86a14; transition: transform .1s, box-shadow .1s; }
+.btn:hover { filter: brightness(1.08); }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a86a14; }
+
+/* ---------- 타이틀 아트 ---------- */
+.title-art { position: relative; height: clamp(250px, 50vw, 340px); border-radius: 14px; overflow: hidden; border: 1px solid var(--line); isolation: isolate; }
+.title-art .bg { position: absolute; inset: 0; }
+.title-art h1 { font-size: clamp(30px, 6.6vw, 46px); }
+.title-art .tt { position: absolute; left: 18px; right: 18px; top: 16px; z-index: 4; }
+.title-art .ttl-dragon { position: absolute; right: -4%; bottom: 10%; width: 62%; z-index: 1; opacity: .9; }
+.title-art .cast { position: absolute; left: 3%; right: 3%; bottom: 7%; z-index: 3; display: flex; gap: 1%; align-items: flex-end; }
+.title-art .cast > div { width: 13.2%; }
+.title-art .tt .lead { text-shadow: 0 1px 6px #000; color: #d7d0ee; }
+
+/* ---------- 선택 카드 ---------- */
+.picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.pick { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; min-width: 0; text-align: left; }
+.pick input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.pick:has(input:checked) { border-color: var(--ember); background: #2a2140; box-shadow: inset 0 0 0 1px var(--ember), 0 0 20px rgba(240,164,58,.18); }
+.pick b { font-size: 16px; }
+.pick .stats { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pick .desc { font-size: 13px; opacity: .85; }
+.pick .pv { height: 96px; display: flex; justify-content: center; margin-bottom: 4px; }
+.pick .pv svg { height: 100%; width: auto; }
+.pick .gi { display: flex; align-items: center; gap: 10px; }
+.ico { width: 40px; height: 40px; flex: none; }
+.legend { background: linear-gradient(180deg, #2d2242, #1c1630); border-color: #7a5a22; animation: glow 2.2s ease-in-out infinite; }
+.legend:hover { border-color: var(--ember); transform: translateY(-2px); }
+@keyframes glow { 50% { box-shadow: 0 0 22px rgba(240,164,58,.35); } }
+
+/* ---------- HUD ---------- */
+.hud { display: flex; flex-direction: column; gap: 8px; }
+.hud-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.hud-row b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.hud-right { display: flex; gap: 10px; align-items: center; }
+.mute { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px 10px; font-size: 13px; color: var(--muted); }
+.track { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; }
+.pip { height: 24px; border-radius: 5px; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pip.boss { border-color: #6b4a2a; color: var(--ember); }
+.pip.final { border-color: var(--blood); color: var(--blood); }
+.pip.done { background: #2d3a3a; color: var(--hp); border-color: #3c5a4c; }
+.pip.now { background: var(--ember); color: var(--ember-ink); border-color: var(--ember); font-weight: 700; box-shadow: 0 0 12px rgba(240,164,58,.6); }
+.pip.now.final { background: var(--blood); color: #fff; border-color: var(--blood); box-shadow: 0 0 12px rgba(224,83,63,.7); }
+
+/* ---------- 스테이지 ---------- */
+.stage { --s: clamp(112px, 25vw, 196px); position: relative; height: clamp(350px, 64vw, 480px); border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #0d0b16; isolation: isolate; user-select: none; }
+.stage-in { position: absolute; inset: 0; }
+.bg { position: absolute; inset: 0; overflow: hidden; }
+.bg .sky { position: absolute; inset: 0; }
+.bg .cel { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); }
+.bg svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bg .layer { transition: transform 0s; }
+.fog { position: absolute; left: -25%; right: -25%; bottom: 12%; height: 30%; background: radial-gradient(closest-side, rgba(255,255,255,.12), transparent); animation: fog 16s ease-in-out infinite alternate; pointer-events: none; }
+.fog.f2 { bottom: 4%; height: 22%; animation-duration: 23s; animation-direction: alternate-reverse; opacity: .8; }
+@keyframes fog { from { transform: translateX(-6%); } to { transform: translateX(6%); } }
+.lava { animation: lava 2.4s ease-in-out infinite; }
+@keyframes lava { 50% { opacity: .65; } }
+.vignette { position: absolute; inset: 0; background: radial-gradient(120% 95% at 50% 42%, transparent 52%, rgba(0,0,0,.6)); pointer-events: none; z-index: 4; }
+.fighter { position: absolute; bottom: 13%; width: var(--s); z-index: 3; }
+.fighter.p { left: 6%; }
+.fighter.m { right: 6%; }
+.fighter.m.boss { width: calc(var(--s) * 1.22); }
+.fighter.m.dragon { width: calc(var(--s) * 2); right: 0; }
+.fighter .mover, .fighter .flasher { will-change: transform; }
+.fighter.m .art { transform: scaleX(-1); }
+.fighter.m .art, .title-art .ttl-dragon .art { filter: drop-shadow(0 5px 5px rgba(0,0,0,.38)) saturate(1.1) contrast(1.06); }
+.fighter .aura { position: absolute; left: 50%; top: 52%; width: 150%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; mix-blend-mode: screen; }
+.fighter .bubble { position: absolute; left: 50%; top: 52%; width: 125%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; border: 3px solid rgba(190,215,255,.9); background: radial-gradient(circle, rgba(150,190,255,.05) 40%, rgba(150,190,255,.35)); box-shadow: 0 0 24px rgba(150,190,255,.7), inset 0 0 28px rgba(150,190,255,.5); animation: bub 2s ease-in-out infinite; pointer-events: none; }
+@keyframes bub { 50% { transform: translate(-50%, -50%) scale(1.04); opacity: .8; } }
+canvas.cv { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+.fxl { position: absolute; inset: 0; z-index: 7; pointer-events: none; overflow: hidden; }
+.fnum { position: absolute; font-family: var(--font-display); font-size: 28px; color: #fff; white-space: nowrap; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 14px rgba(0,0,0,.6); animation: fnum 1s cubic-bezier(.2,.8,.3,1) forwards; }
+.fnum.dmg { color: #ffd9d2; }
+.fnum.big { font-size: 46px; color: #ffb347; }
+.fnum.heal { color: #7dffb0; }
+.fnum.absorb { color: #bcd0ff; }
+.fnum.lvl { color: #ffe27a; font-size: 34px; }
+@keyframes fnum { 0% { transform: translate(-50%, -30%) scale(.4); opacity: 0; } 14% { transform: translate(-50%, -80%) scale(1.3); opacity: 1; } 100% { transform: translate(-50%, -230%) scale(1); opacity: 0; } }
+.slash { position: absolute; pointer-events: none; overflow: visible; }
+.ring { position: absolute; border-radius: 50%; border: 4px solid #fff; transform: translate(-50%, -50%); pointer-events: none; }
+.pillar { position: absolute; top: 0; bottom: 0; transform: translateX(-50%); pointer-events: none; mix-blend-mode: screen; }
+.flash { position: absolute; inset: 0; z-index: 9; opacity: 0; pointer-events: none; }
+.plate { position: absolute; top: 10px; z-index: 6; width: min(47%, 280px); background: rgba(10,8,20,.74); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
+.plate.p { left: 10px; }
+.plate.m { right: 10px; }
+.plate.m.boss { border-color: rgba(224,83,63,.7); box-shadow: 0 0 18px rgba(224,83,63,.3); }
+.plate .nm { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; min-width: 0; }
+.plate .nm b { font-size: 14px; overflow-wrap: anywhere; line-height: 1.25; }
+.plate .nm span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.bar { position: relative; height: 13px; border-radius: 7px; background: #05040b; overflow: hidden; border: 1px solid rgba(255,255,255,.08); }
+.bar.thin { height: 13px; }
+.bar.xs { height: 5px; }
+.bar i { position: absolute; inset: 0 auto 0 0; width: 100%; transition: width .3s ease; }
+.bar .ghost { background: #f1e6a8; transition: width .8s ease .35s; opacity: .85; }
+.bar .hp { background: linear-gradient(#7bdca3, #3da872); }
+.bar.low .hp { background: linear-gradient(#ff8070, #d23a2a); }
+.bar .rs.mana { background: linear-gradient(#7ec0ff, #3a82d8); }
+.bar .rs.rage { background: linear-gradient(#ff8a70, #d6402e); }
+.bar .sh { background: linear-gradient(#e3ecff, #9fb4e0); }
+.bar .xp { background: linear-gradient(#ffe27a, #e0a82a); }
+.bar .num { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; font-variant-numeric: tabular-nums; letter-spacing: .02em; z-index: 2; }
+.plate .stat { display: flex; gap: 10px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.plate .warn { font-size: 11px; color: #ff8a70; font-weight: 700; min-height: 15px; }
+.pill { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 6; font-size: 11px; font-weight: 700; letter-spacing: .12em; padding: 3px 12px; border-radius: 999px; background: rgba(10,8,20,.7); border: 1px solid rgba(255,255,255,.15); color: var(--muted); white-space: nowrap; }
+.pill.me { color: var(--ember); border-color: rgba(240,164,58,.55); }
+.pill.en { color: #ff8a70; border-color: rgba(224,83,63,.55); }
+@media (max-width: 560px) { .pill { top: auto; bottom: 62px; } }
+.banner { position: absolute; left: 0; right: 0; top: 34%; z-index: 8; text-align: center; font-family: var(--font-display); font-size: clamp(30px, 8vw, 62px); letter-spacing: .04em; pointer-events: none; opacity: 0; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,.9), 0 0 36px currentColor; line-height: 1.1; }
+.banner small { display: block; font-family: var(--font-body); font-size: .3em; letter-spacing: .3em; font-weight: 700; margin-top: 6px; opacity: .9; }
+.banner.show { animation: banner 1.7s ease forwards; }
+@keyframes banner { 0% { opacity: 0; transform: translateX(-70px) scale(1.15); } 18% { opacity: 1; transform: none; } 80% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(70px); } }
+.caption { position: absolute; left: 12px; right: 12px; bottom: 9px; z-index: 6; text-align: center; font-size: 13px; background: rgba(10,8,20,.64); border-radius: 8px; padding: 5px 10px; min-height: 29px; overflow-wrap: anywhere; }
+
+/* ---------- 행동 ---------- */
+.actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+@media (max-width: 560px) { .actions { grid-template-columns: 1fr 1fr; } }
+.abtn { position: relative; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 8px 9px; display: flex; flex-direction: column; gap: 1px; align-items: center; text-align: center; min-width: 0; box-shadow: 0 3px 0 #0b0916; transition: transform .08s, border-color .15s; }
+.abtn .bi { width: 22px; height: 22px; margin-bottom: 2px; color: var(--muted); }
+.abtn b { font-size: 14px; line-height: 1.25; }
+.abtn small { font-size: 11px; color: var(--muted); }
+.abtn kbd { position: absolute; top: 5px; right: 7px; font: 10px var(--font-body); color: var(--muted); opacity: .6; }
+.abtn:hover:not(:disabled) { border-color: var(--ember); transform: translateY(-1px); }
+.abtn:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+.abtn:hover:not(:disabled) .bi { color: var(--ember); }
+.abtn.ult:not(:disabled) { border-color: var(--ember); animation: ult 1.5s ease-in-out infinite; }
+.abtn.ult:not(:disabled) .bi { color: var(--ember); }
+@keyframes ult { 50% { box-shadow: 0 3px 0 #0b0916, 0 0 18px rgba(240,164,58,.55); } }
+.abtn:disabled { opacity: .38; cursor: not-allowed; }
+.next { display: flex; justify-content: center; }
+.log { background: #0b0914; border: 1px solid var(--line); border-radius: 10px; height: 170px; overflow-y: auto; padding: 10px 14px; font-size: 13px; }
+.log p { margin: 0 0 3px; overflow-wrap: anywhere; }
+.log .act { color: var(--fg); margin-top: 7px; }
+.log .dmg { color: #e8a79b; padding-left: 1.2em; }
+.log .good { color: var(--hp); }
+.log .lvl { color: var(--ember); font-weight: 700; }
+.log .sys { color: var(--muted); }
+.log .bad { color: var(--blood); font-weight: 700; }
+.log .div { border-top: 1px dashed var(--line); margin: 9px 0 5px; padding-top: 7px; color: var(--ember); font-weight: 700; }
+
+/* ---------- 보상 / 결과 ---------- */
+.reward-stage { position: relative; height: 150px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); display: grid; place-items: center; background: radial-gradient(circle at 50% 120%, #4a3512, #17121f 70%); }
+.reward-stage .art { height: 130px; width: auto; }
+.result-art { position: relative; height: 190px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); display: grid; place-items: end center; padding-bottom: 14px; isolation: isolate; }
+.result-art .bg { position: absolute; inset: 0; z-index: -1; }
+.result-art .art { height: 150px; width: auto; }
+.result-art.lose .art { filter: grayscale(1) brightness(.55); transform: rotate(84deg) translate(-8px, 10px); transform-origin: 50% 100%; }
+.result-title { font-family: var(--font-display); font-size: clamp(30px, 7vw, 46px); line-height: 1.15; margin: 0; text-wrap: balance; }
+.result-title.win { color: var(--ember); text-shadow: 0 0 28px rgba(240,164,58,.5); }
+.result-title.lose { color: var(--blood); }
+dl.stats-list { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; font-variant-numeric: tabular-nums; }
+dl.stats-list dt { color: var(--muted); }
+dl.stats-list dd { margin: 0; overflow-wrap: anywhere; }
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+
+.title-art .ttl-dragon .art{transform:scaleX(-1)}
+
+</style>
+<div id="app">
+
+  <section id="screen-setup" class="screen">
+    <div class="title-art" id="title-art">
+      <div class="bg" id="title-bg"></div>
+      <div class="ttl-dragon" id="title-dragon"></div>
+      <div class="tt">
+        <p class="eyebrow">12번의 전투 · 하드 모드</p>
+        <h1>최후의 라이벌을<br>쓰러뜨려라</h1>
+      </div>
+      <div class="cast" id="title-cast"></div>
+    </div>
+    <p class="lead" style="margin:0">슬라임부터 오크 대장군까지 열두 번 싸우고, 마지막 전투에서는 선택한 직업의 라이벌과 맞붙는다. 3, 6, 9, 12번째 전투 전에는 전설 장비를 하나 고를 수 있다.</p>
+
+    <div class="panel">
+      <h3>1. 이름과 직업</h3>
+      <label class="field" for="name">플레이어 이름
+        <input id="name" type="text" maxlength="12" placeholder="용사" autocomplete="off">
+      </label>
+      <div class="picks" id="jobs"></div>
+    </div>
+
+    <div class="panel">
+      <h3>2. 스타팅 장비</h3>
+      <div class="picks" id="gear-start"></div>
+      <div><button class="btn" id="btn-start" type="button">모험 시작</button></div>
+    </div>
+  </section>
+
+  <section id="hud" class="hud" hidden>
+    <div class="hud-row">
+      <span>전투 <b id="hud-turn">1</b> / 12 · 처치 <b id="hud-kills">0</b> · <span id="hud-area"></span></span>
+      <span class="hud-right"><span>🧪 포션 <b id="hud-potion">10</b></span><button class="mute" id="btn-mute" type="button" aria-pressed="true">🔊 소리</button></span>
+    </div>
+    <div class="track" id="track" aria-label="전투 진행"></div>
+  </section>
+
+  <section id="screen-reward" class="screen" hidden>
+    <div>
+      <h2 id="reward-title">전설 장비 선택</h2>
+      <p class="lead" id="reward-sub"></p>
+    </div>
+    <div class="reward-stage" id="reward-stage"></div>
+    <div class="picks" id="reward-picks"></div>
+  </section>
+
+  <section id="screen-battle" class="screen" hidden>
+    <div class="stage" id="stage">
+      <div class="stage-in" id="stage-in">
+        <div class="bg" id="bg"></div>
+        <div class="fog"></div><div class="fog f2"></div>
+        <div class="fighter p" id="f-p"><div class="mover"><div class="flasher"></div></div></div>
+        <div class="fighter m" id="f-m"><div class="mover"><div class="flasher"></div></div></div>
+        <div class="vignette"></div>
+      </div>
+      <canvas class="cv" id="cv"></canvas>
+      <div class="fxl" id="fxl"></div>
+      <div class="plate p" id="plate-p"></div>
+      <div class="plate m" id="plate-m"></div>
+      <div class="pill" id="pill"></div>
+      <div class="banner" id="banner"></div>
+      <div class="caption" id="caption"></div>
+      <div class="flash" id="flash"></div>
+    </div>
+    <div class="actions" id="actions">
+      <button class="abtn" type="button" id="a-attack"><kbd>1</kbd><span id="i-attack"></span><b>공격</b><small id="a-attack-sub"></small></button>
+      <button class="abtn" type="button" id="a-special"><kbd>2</kbd><span id="i-special"></span><b id="a-special-name"></b><small id="a-special-sub"></small></button>
+      <button class="abtn ult" type="button" id="a-ult"><kbd>3</kbd><span id="i-ult"></span><b id="a-ult-name"></b><small id="a-ult-sub"></small></button>
+      <button class="abtn" type="button" id="a-potion"><kbd>4</kbd><span id="i-potion"></span><b>힐링 포션</b><small id="a-potion-sub"></small></button>
+    </div>
+    <div class="next" id="next-wrap" hidden><button class="btn" type="button" id="btn-next">다음 전투 ▶</button></div>
+    <div class="log" id="log" role="log" aria-live="off"></div>
+  </section>
+
+  <section id="screen-result" class="screen" hidden>
+    <div class="result-art" id="result-art"><div class="bg" id="result-bg"></div><div id="result-sprite"></div></div>
+    <h2 class="result-title" id="result-title"></h2>
+    <div class="panel"><dl class="stats-list" id="result-stats"></dl></div>
+    <div><button class="btn" type="button" id="btn-restart">다시 도전</button></div>
+  </section>
+</div>
+<canvas id="confetti"></canvas>
+
+<script>
+(function () {
+"use strict";
+/* ---------- 캐릭터 / 몬스터 SVG 아트 ---------- */
+const svg = (vb, inner, cls) => `<svg viewBox="${vb}" class="art ${cls || ""}" aria-hidden="true">${inner}</svg>`;
+const SH = (cx, rx) => `<ellipse cx="${cx}" cy="208" rx="${rx}" ry="7" fill="#000" opacity=".32"/>`;
+
+const ART = {
+  warrior() {
+    return svg("0 0 200 220", `${SH(100, 46)}
+<g class="bob">
+ <g class="sway" style="transform-origin:84px 98px"><path class="o" d="M84 98C60 118 54 168 62 196L100 190L106 104Z" fill="#c4323a"/><path d="M82 106C70 134 66 164 70 188" stroke="#8c2027" stroke-width="5" fill="none" stroke-linecap="round"/></g>
+ <rect class="o" x="84" y="154" width="17" height="46" rx="7" fill="#4b3a30"/><rect class="o" x="105" y="154" width="17" height="46" rx="7" fill="#4b3a30"/>
+ <path class="o" d="M79 196h26q3 0 3 5v5H76v-5q0-5 3-5z" fill="#2a211c"/><path class="o" d="M103 196h26q3 0 3 5v5h-32v-5q0-5 3-5z" fill="#2a211c"/>
+ <path class="o" d="M76 100Q102 89 128 100L133 160Q103 170 71 160Z" fill="#9fb0c8"/>
+ <path d="M84 104Q102 98 119 104L121 128Q102 134 84 128Z" fill="#dce6f3" opacity=".5"/>
+ <path class="o" d="M93 128h18l4 40H89z" fill="#c4323a"/>
+ <rect class="o" x="73" y="148" width="60" height="11" rx="4" fill="#5b3f2e"/><rect class="o" x="96" y="147" width="14" height="13" rx="3" fill="#e8b84a"/>
+ <path class="o" d="M46 114h36v34q0 22-18 30Q46 170 46 148z" fill="#c4323a"/><path d="M51 119h26v29q0 15-13 23Q51 163 51 148z" fill="#8c2027" opacity=".55"/><circle class="o" cx="64" cy="142" r="8" fill="#e8b84a"/>
+ <circle class="o" cx="104" cy="74" r="24" fill="#f0c9a0"/>
+ <path class="o" d="M79 76Q78 46 104 46Q131 46 129 76L120 76V68H88V76Z" fill="#9fb0c8"/>
+ <rect class="o" x="103" y="62" width="7" height="20" rx="3" fill="#9fb0c8"/>
+ <circle cx="118" cy="77" r="3.2" fill="#0d0a16"/><path d="M112 70l10 2" stroke="#0d0a16" stroke-width="2.5" stroke-linecap="round"/>
+ <path class="o sway" style="transform-origin:100px 48px" d="M97 48Q86 22 116 26Q104 36 110 49Z" fill="#c4323a"/>
+ <circle class="o" cx="82" cy="104" r="13" fill="#9fb0c8"/><circle class="o" cx="124" cy="106" r="13" fill="#b8c6da"/>
+ <g class="weapon" data-base="rotate(12deg)" style="transform-origin:146px 130px;transform:rotate(12deg)">
+   <path class="o" d="M124 108L148 124L141 136L119 122Z" fill="#9fb0c8"/>
+   <rect class="o" x="141" y="62" width="10" height="66" rx="2" fill="#e6eef8"/>
+   <path class="o" d="M141 62L146 42L151 62Z" fill="#e6eef8"/>
+   <path d="M146 66V122" stroke="#9fb0c8" stroke-width="2"/>
+   <rect class="o" x="133" y="125" width="26" height="8" rx="3" fill="#e8b84a"/>
+   <rect class="o" x="142" y="132" width="8" height="12" rx="3" fill="#5b3f2e"/>
+   <circle class="o" cx="146" cy="130" r="8" fill="#f0c9a0"/>
+ </g>
+</g>`);
+  },
+
+  wizard() {
+    return svg("0 0 200 220", `${SH(100, 44)}
+<g class="bob">
+ <g class="sway" style="transform-origin:82px 100px"><path class="o" d="M82 100C64 132 58 180 56 202L96 198L104 104Z" fill="#14141c"/></g>
+ <path class="o" d="M74 100Q102 86 132 100L146 202Q102 214 58 202Z" fill="#23232f"/>
+ <path d="M84 112Q102 106 124 112L130 150Q102 158 80 150Z" fill="#33334a" opacity=".5"/>
+ <path class="o" d="M82 200h24v8H78z M104 200h24v8h-28z" fill="#12121a"/>
+ <path class="o" d="M88 108l-7 42l15 4l5-40z" fill="#b3202a"/><path d="M84 124l15 3M83 136l15 3" stroke="#e8b84a" stroke-width="3" stroke-linecap="round"/>
+ <path class="o" d="M82 94Q104 112 128 94L130 108Q104 126 80 108Z" fill="#b3202a"/>
+ <path d="M91 101l-1 13M102 106l-1 13M113 106l0 13M123 101l1 12" stroke="#e8b84a" stroke-width="3" stroke-linecap="round"/>
+ <circle class="o" cx="104" cy="74" r="22" fill="#f4d2ae"/>
+ <path class="o" d="M82 78Q75 42 98 35Q110 29 121 35Q137 42 128 76Q124 60 116 56Q110 64 100 58Q92 62 90 72Q86 74 82 78Z" fill="#15131a"/>
+ <path class="o" d="M94 38l-5-10l11 6zM108 33l1-11l9 10zM122 40l9-6l-2 13z" fill="#15131a"/>
+ <path d="M109 63l4-3l-1 4l4-2" stroke="#d9453a" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+ <circle cx="114" cy="78" r="7.5" fill="#fff" fill-opacity=".35" stroke="#2a1a14" stroke-width="2.2"/><circle cx="115.5" cy="78" r="2.8" fill="#1d2a14"/><circle cx="116.3" cy="77" r=".9" fill="#fff"/>
+ <path d="M121.5 77h4M106.5 76L91 71" stroke="#2a1a14" stroke-width="2" stroke-linecap="round"/>
+ <path d="M110 91Q116 94 122 91" stroke="#b5584f" stroke-width="2.3" fill="none" stroke-linecap="round"/>
+ <path class="o" d="M116 108L148 126L142 140L110 124Z" fill="#23232f"/>
+ <g class="weapon" data-base="none" style="transform-origin:150px 132px">
+   <rect class="o" x="148" y="70" width="5" height="64" rx="2" fill="#8a5a2e" transform="rotate(16 150 132)"/>
+   <g class="pulse" style="transform-origin:168px 72px"><circle cx="168" cy="72" r="14" fill="#ff8a7a" opacity=".3"/></g>
+   <circle cx="168" cy="72" r="3.6" fill="#ffd9d0"/>
+   <circle class="o" cx="150" cy="134" r="8" fill="#f4d2ae"/>
+ </g>
+</g>`);
+  },
+
+  healer() {
+    return svg("0 0 200 220", `${SH(100, 44)}
+<g class="bob">
+ <g class="sway" style="transform-origin:84px 98px"><path class="o" d="M84 98C66 128 62 176 66 200L100 196L104 102Z" fill="#cfe9dc"/></g>
+ <path class="o" d="M80 70Q74 112 88 132L102 100Z" fill="#f1d27a"/>
+ <path class="o" d="M76 100Q102 88 130 100L142 202Q102 212 62 202Z" fill="#f4f8f5"/>
+ <path d="M84 108Q102 100 124 108L128 140Q102 148 82 140Z" fill="#fff" opacity=".6"/>
+ <path class="o" d="M76 120L128 148L124 162L72 134Z" fill="#3fae7a"/>
+ <path d="M62 196Q102 206 142 196L142 203Q102 213 62 203Z" fill="#3fae7a"/>
+ <path class="o" d="M84 202h22v6H80z M104 202h22v6h-26z" fill="#c9b27a"/>
+ <circle class="o" cx="104" cy="78" r="21" fill="#f6d5b6"/>
+ <path class="o" d="M82 80Q78 48 104 48Q132 48 127 82Q120 62 104 62Q90 64 82 80Z" fill="#f1d27a"/>
+ <path class="o" d="M122 66Q142 84 128 118Q118 104 120 82Z" fill="#f1d27a"/>
+ <circle cx="114" cy="80" r="3.2" fill="#2c6a52"/><circle cx="120" cy="88" r="4" fill="#ff9aa8" opacity=".5"/>
+ <path d="M108 90Q113 94 118 91" stroke="#b5584f" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+ <g class="halo" style="transform-origin:104px 38px"><ellipse cx="104" cy="38" rx="21" ry="6" fill="none" stroke="#ffe27a" stroke-width="4"/></g>
+ <path class="o" d="M118 108L148 126L142 140L112 124Z" fill="#f4f8f5"/>
+ <g class="weapon" data-base="none" style="transform-origin:150px 132px">
+   <rect class="o" x="146" y="56" width="8" height="158" rx="3" fill="#e8dcc0"/>
+   <g class="pulse" style="transform-origin:150px 38px"><circle cx="150" cy="38" r="20" fill="#79e0b0" opacity=".3"/></g>
+   <path class="o" d="M134 34Q142 24 150 30Q158 24 166 34Q158 40 150 44Q142 40 134 34Z" fill="#e8b84a"/>
+   <path class="o" d="M150 22l10 14-10 16-10-16z" fill="#79e0b0"/><path d="M146 30l4-4 2 8z" fill="#fff" opacity=".7"/>
+   <circle class="o" cx="150" cy="134" r="8" fill="#f6d5b6"/>
+ </g>
+</g>`);
+  },
+
+  archmage() {
+    return svg("0 0 200 220", `${SH(100, 44)}
+<g class="bob">
+ <g class="sway" style="transform-origin:82px 100px"><path class="o" d="M80 100C60 134 54 182 52 204L98 200L106 104Z" fill="#2a1a52"/></g>
+ <path class="o" d="M72 100Q102 86 134 100L150 204Q102 216 54 204Z" fill="#4a2a86"/>
+ <path d="M84 112Q104 106 126 112L132 152Q104 160 80 152Z" fill="#6a46b0" opacity=".5"/>
+ <path d="M97 102L104 206L111 102Z" fill="#e0b84a" opacity=".85"/>
+ <path d="M80 140l2 5l5 .5l-4 3.5l1.2 5l-4.2-2.8l-4.2 2.8l1.2-5l-4-3.5l5-.5z" fill="#ffe27a"/>
+ <path d="M126 160a8 8 0 1 0 6 12a6 6 0 1 1-6-12z" fill="#ffe27a"/>
+ <path class="o" d="M82 200h24v8H78z M104 200h24v8h-28z" fill="#1a1230"/>
+ <path class="o" d="M86 82Q84 120 104 152Q124 120 124 82Q114 96 104 96Q94 96 86 82Z" fill="#f4f1ea"/>
+ <path d="M96 118Q104 130 112 118M92 100Q104 112 116 100" stroke="#d8d4cc" stroke-width="2" fill="none" stroke-linecap="round"/>
+ <circle class="o" cx="104" cy="74" r="21" fill="#f4d2ae"/>
+ <path class="o" d="M83 80Q74 46 104 42Q134 46 126 80Q124 62 104 58Q86 62 83 80Z" fill="#e8e8f0"/>
+ <path class="o" d="M78 56Q100 36 110 4Q122 34 130 56Z" fill="#4a2a86"/>
+ <ellipse class="o" cx="104" cy="57" rx="30" ry="7" fill="#3a2070"/>
+ <path d="M82 56Q104 63 128 56" stroke="#e0b84a" stroke-width="4" fill="none" stroke-linecap="round"/>
+ <path d="M106 80a7 5.5 0 0 0 14 0z" fill="#cfe8ff" fill-opacity=".5" stroke="#d9b25a" stroke-width="2" stroke-linejoin="round"/>
+ <path d="M105 80h16M105 79L91 76" stroke="#d9b25a" stroke-width="2" stroke-linecap="round"/>
+ <circle cx="113" cy="77" r="2.6" fill="#2a5a9a"/>
+ <path d="M104 72l14 1.5" stroke="#d0d0da" stroke-width="3.2" stroke-linecap="round"/>
+ <path class="o" d="M116 108L148 126L142 140L110 124Z" fill="#4a2a86"/>
+ <g class="weapon" data-base="none" style="transform-origin:150px 132px">
+   <rect class="o" x="148" y="70" width="5" height="64" rx="2" fill="#d8c9a0" transform="rotate(16 150 132)"/>
+   <g class="pulse" style="transform-origin:168px 72px"><circle cx="168" cy="72" r="14" fill="#cfe8ff" opacity=".35"/></g>
+   <circle cx="168" cy="72" r="3.6" fill="#fff"/>
+   <circle class="o" cx="150" cy="134" r="8" fill="#f4d2ae"/>
+ </g>
+</g>`);
+  },
+
+  darkwizard() {
+    return svg("0 0 200 220", `${SH(100, 44)}
+<g class="bob">
+ <g class="sway" style="transform-origin:82px 100px"><path class="o" d="M82 100C62 132 54 182 52 204L98 200L104 104Z" fill="#14101f"/></g>
+ <path class="o" d="M74 100Q102 86 132 100L148 204Q102 216 54 204Z" fill="#1d1830"/>
+ <path d="M84 110Q102 104 124 110L130 160Q102 168 80 160Z" fill="#2d2650" opacity=".6"/>
+ <path d="M101 102h6l3 104h-12z" fill="#2f7a4a" opacity=".85"/>
+ <path d="M72 152Q102 164 134 152" stroke="#2f7a4a" stroke-width="6" fill="none" stroke-linecap="round"/>
+ <path class="o" d="M82 202h24v8H78z M104 202h24v8h-28z" fill="#0d0a16"/>
+ <path d="M44 206q14-20 28-4t24-2" stroke="#0d0a16" stroke-width="11" fill="none" stroke-linecap="round"/><path d="M44 206q14-20 28-4t24-2" stroke="#3fae6a" stroke-width="6" fill="none" stroke-linecap="round"/><circle cx="96" cy="200" r="2" fill="#ff3b3b"/>
+ <circle class="o" cx="104" cy="82" r="20" fill="#dfe6df"/>
+ <ellipse cx="113" cy="79" rx="4" ry="2.2" fill="#ff2a2a"/><path d="M106 72l12 3" stroke="#9aa89f" stroke-width="2.5" stroke-linecap="round"/>
+ <path d="M112 89l1.5 2M116 88l1.5 2" stroke="#6a766e" stroke-width="1.6" stroke-linecap="round"/><path d="M107 95Q113 97 119 94" stroke="#7a5a5a" stroke-width="2" fill="none" stroke-linecap="round"/>
+ <path class="o" d="M80 100Q104 122 128 100L124 92Q104 108 84 92Z" fill="#14101f"/>
+ <path class="o" d="M116 108L148 126L142 140L110 124Z" fill="#1d1830"/>
+ <g class="weapon" data-base="none" style="transform-origin:150px 132px">
+   <rect class="o" x="148" y="76" width="5" height="62" rx="2" fill="#e8e0c8" transform="rotate(22 150 132)"/>
+   <g class="pulse" style="transform-origin:171px 80px"><circle cx="171" cy="80" r="14" fill="#5dff8a" opacity=".3"/></g>
+   <circle cx="171" cy="80" r="4" fill="#b6ffcb"/>
+   <circle class="o" cx="150" cy="134" r="8" fill="#dfe6df"/>
+ </g>
+</g>`);
+  },
+
+  yeon() {
+    return svg("0 0 200 220", `${SH(100, 50)}
+<g class="bob">
+ <g transform="rotate(16 128 116)"><rect class="o" x="124" y="40" width="8" height="76" rx="3" fill="#15151c"/><g class="y-hilt"><rect class="o" x="121" y="28" width="14" height="14" rx="3" fill="#d9b25a"/><rect x="122" y="42" width="12" height="3" fill="#b8913a"/></g></g>
+ <g class="sway" style="transform-origin:86px 100px"><path class="o" d="M86 100C66 128 58 168 62 192L100 190L108 104Z" fill="#101016"/></g>
+ <rect class="o" x="82" y="154" width="18" height="46" rx="7" fill="#1d1d28"/><rect class="o" x="104" y="154" width="18" height="46" rx="7" fill="#1d1d28"/>
+ <path class="o" d="M77 196h26q3 0 3 5v5H74v-5q0-5 3-5z" fill="#0b0b11"/><path class="o" d="M101 196h26q3 0 3 5v5h-32v-5q0-5 3-5z" fill="#0b0b11"/>
+ <path class="o" d="M72 100Q102 86 132 100L138 158Q103 170 66 158Z" fill="#17171f"/>
+ <path d="M94 98L104 146L114 98Z" fill="#0b0b11"/><path d="M102 102h5l2 34l-4.5 5l-4.5-5z" fill="#34344a"/>
+ <path class="o" d="M66 154h72l6 24H60z" fill="#17171f"/>
+ <path d="M90 100L102 146L84 152L76 112Z" fill="#23232e"/><path d="M118 100L106 146L124 152L132 112Z" fill="#23232e"/>
+ <path d="M114 118l12-4" stroke="#d8dde6" stroke-width="2.2" stroke-linecap="round"/><circle cx="127.5" cy="113.5" r="2.3" fill="none" stroke="#d8dde6" stroke-width="1.5"/>
+ <path d="M126 98L82 152" stroke="#07070b" stroke-width="5" stroke-linecap="round"/><rect x="95" y="124" width="8" height="10" rx="1.5" fill="#b8bfcc" transform="rotate(-40 99 129)"/>
+ <path class="o" d="M72 104Q62 128 68 150L82 148Q82 126 88 108Z" fill="#17171f"/><circle class="o" cx="75" cy="154" r="7" fill="#f6d2ae"/>
+ <circle class="o" cx="104" cy="72" r="23" fill="#f6d2ae"/>
+ <path class="o" d="M80 78Q73 40 102 36Q134 33 128 76Q125 62 118 58Q112 66 102 60Q92 62 86 70Q82 72 80 78Z" fill="#a8542f"/>
+ <path d="M90 48Q104 40 121 46" stroke="#cf7a44" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+ <circle cx="116" cy="76" r="3.2" fill="#2a1a14"/><path d="M108 70l13 1" stroke="#5a3020" stroke-width="3" stroke-linecap="round"/>
+ <path d="M108 87Q114 90 120 87" stroke="#b5584f" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+ <path class="o" d="M126 110L150 126L143 138L121 124Z" fill="#17171f"/>
+ <g class="pulse" style="transform-origin:178px 98px"><circle cx="178" cy="98" r="18" fill="#6ec8ff" opacity=".28"/></g>
+ <circle class="o" cx="178" cy="98" r="8" fill="#a8e4ff"/><circle cx="175.5" cy="95.5" r="3" fill="#fff" opacity=".9"/>
+ <g class="weapon" data-base="rotate(10deg)" style="transform-origin:148px 132px;transform:rotate(10deg)">
+   <g class="y-blade"><path class="o" d="M144 122V52L148 22L152 52V122Z" fill="#1c1c26"/><path d="M147 32V118" stroke="#6a6a8e" stroke-width="1.6"/>
+   <rect class="o" x="138" y="120" width="20" height="6" rx="2.5" fill="#d9b25a"/><rect class="o" x="144" y="126" width="8" height="16" rx="3" fill="#15151c"/></g>
+   <rect x="140" y="132" width="9" height="6" rx="1.2" fill="#c9ced8"/>
+   <circle class="o" cx="148" cy="134" r="8.5" fill="#f6d2ae"/>
+ </g>
+</g>`);
+  },
+
+  hero() {
+    return svg("0 0 200 220", `${SH(100, 50)}
+<g class="bob">
+ <g class="sway" style="transform-origin:86px 94px"><path class="o" d="M86 94C54 120 44 180 50 206L102 198L110 100Z" fill="#2f5fd0"/><path d="M84 104C66 136 60 172 64 198L84 194Z" fill="#1f43a0" opacity=".6"/></g>
+ <rect class="o" x="82" y="154" width="18" height="46" rx="7" fill="#b8862a"/><rect class="o" x="104" y="154" width="18" height="46" rx="7" fill="#b8862a"/>
+ <path class="o" d="M77 196h26q3 0 3 5v5H74v-5q0-5 3-5z" fill="#6b4a1c"/><path class="o" d="M101 196h26q3 0 3 5v5h-32v-5q0-5 3-5z" fill="#6b4a1c"/>
+ <path class="o" d="M72 100Q102 86 132 100L138 158Q103 170 66 158Z" fill="#f0c14a"/>
+ <path d="M80 104Q102 96 124 104L126 128Q102 136 80 128Z" fill="#fff3b8" opacity=".55"/>
+ <path class="o" d="M66 154h72l6 28H60z" fill="#2f5fd0"/>
+ <circle class="o" cx="103" cy="128" r="11" fill="#2f5fd0"/><path d="M103 120l2.6 5.4 5.8.8-4.2 4 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4 5.8-.8z" fill="#ffe27a"/>
+ <rect class="o" x="68" y="148" width="68" height="10" rx="4" fill="#6b4a1c"/>
+ <circle class="o" cx="104" cy="72" r="23" fill="#f6d2ae"/>
+ <path class="o" d="M80 74Q76 40 98 38L96 24L108 38L116 22L120 40Q134 42 128 74Q122 58 104 56Q88 58 80 74Z" fill="#7a4a24"/>
+ <path class="o" d="M82 62Q104 50 128 62L128 68Q104 58 82 68Z" fill="#f0c14a"/><circle class="o" cx="105" cy="58" r="4" fill="#4aa8ff"/>
+ <circle cx="116" cy="76" r="3.2" fill="#0d0a16"/><path d="M110 70l11 1" stroke="#4a2c14" stroke-width="2.6" stroke-linecap="round"/>
+ <path d="M108 86Q114 90 120 86" stroke="#b5584f" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+ <path class="o" d="M70 98l-6-14 14 6 6 8z" fill="#f0c14a"/><circle class="o" cx="80" cy="104" r="15" fill="#f0c14a"/><circle cx="80" cy="104" r="6" fill="#4aa8ff"/>
+ <circle class="o" cx="128" cy="106" r="15" fill="#fbd96a"/><circle cx="128" cy="106" r="6" fill="#4aa8ff"/>
+ <g class="weapon" data-base="rotate(10deg)" style="transform-origin:148px 132px;transform:rotate(10deg)">
+   <path class="o" d="M126 110L150 126L143 138L121 124Z" fill="#f0c14a"/>
+   <g class="pulse" style="transform-origin:148px 70px"><rect x="132" y="22" width="32" height="110" rx="14" fill="#bfe0ff" opacity=".3"/></g>
+   <rect class="o" x="141" y="22" width="14" height="104" rx="3" fill="#f4f8ff"/>
+   <path class="o" d="M141 22L148 0L155 22Z" fill="#f4f8ff"/>
+   <path d="M148 26V118" stroke="#9fc2ff" stroke-width="3"/>
+   <rect class="o" x="130" y="124" width="36" height="9" rx="4" fill="#f0c14a"/><circle cx="148" cy="128" r="3.4" fill="#4aa8ff"/>
+   <rect class="o" x="143" y="132" width="10" height="14" rx="3" fill="#2f5fd0"/>
+   <circle class="o" cx="148" cy="134" r="8.5" fill="#f6d2ae"/>
+ </g>
+</g>`);
+  },
+
+  slime() {
+    return svg("0 0 200 220", `<ellipse cx="100" cy="208" rx="64" ry="8" fill="#000" opacity=".32"/>
+<g class="slimeb">
+ <path class="o" d="M34 202Q20 150 62 120Q100 92 140 122Q182 150 168 202Q100 216 34 202Z" fill="#5fd36b"/>
+ <path d="M42 194Q34 156 64 134Q54 160 62 196Z" fill="#2e9a40" opacity=".4"/>
+ <path d="M150 190Q162 160 142 134Q166 156 160 194Z" fill="#2e9a40" opacity=".35"/>
+ <ellipse cx="72" cy="132" rx="17" ry="9" fill="#e4ffe8" opacity=".65" transform="rotate(-28 72 132)"/>
+ <circle cx="136" cy="178" r="5" fill="#e4ffe8" opacity=".5"/><circle cx="60" cy="182" r="3.5" fill="#e4ffe8" opacity=".5"/><circle cx="146" cy="160" r="3" fill="#e4ffe8" opacity=".45"/>
+ <g class="blink" style="transform-origin:100px 156px"><ellipse class="o" cx="78" cy="156" rx="12" ry="15" fill="#fff"/><ellipse class="o" cx="122" cy="156" rx="12" ry="15" fill="#fff"/>
+ <circle cx="82" cy="159" r="6.5" fill="#0d0a16"/><circle cx="126" cy="159" r="6.5" fill="#0d0a16"/><circle cx="84" cy="156" r="2" fill="#fff"/><circle cx="128" cy="156" r="2" fill="#fff"/></g>
+ <path d="M88 184Q100 196 112 184" stroke="#0d0a16" stroke-width="4" fill="none" stroke-linecap="round"/>
+</g>`);
+  },
+
+  goblin() {
+    return svg("0 0 200 220", `${SH(100, 38)}
+<g class="bob">
+ <rect class="o" x="84" y="164" width="13" height="38" rx="5" fill="#6aa83e"/><rect class="o" x="106" y="164" width="13" height="38" rx="5" fill="#6aa83e"/>
+ <path class="o" d="M80 198h20v9H78z M104 198h20v9h-22z" fill="#4a3320"/>
+ <path class="o" d="M80 118Q102 110 126 120L124 170Q102 178 82 170Z" fill="#7bbf4a"/>
+ <path d="M90 124Q104 120 118 126L118 142Q104 146 90 142Z" fill="#fff" opacity=".1"/>
+ <path class="o" d="M78 158h50l6 24H72z" fill="#8a5a2c"/>
+ <path class="o" d="M74 84L30 60L66 108Z" fill="#7bbf4a"/><path d="M62 88L42 72L62 100Z" fill="#e8909a" opacity=".6"/>
+ <path class="o" d="M134 84L176 60L140 108Z" fill="#7bbf4a"/><path d="M146 88L164 72L146 100Z" fill="#e8909a" opacity=".6"/>
+ <circle class="o" cx="104" cy="90" r="31" fill="#8fd05a"/>
+ <ellipse class="o" cx="94" cy="86" rx="8" ry="9" fill="#ffe56a"/><ellipse class="o" cx="118" cy="86" rx="8" ry="9" fill="#ffe56a"/>
+ <ellipse cx="97" cy="87" rx="2.6" ry="6" fill="#0d0a16"/><ellipse cx="121" cy="87" rx="2.6" ry="6" fill="#0d0a16"/>
+ <path d="M82 74L102 80M132 72L112 80" stroke="#3d6a22" stroke-width="4" stroke-linecap="round"/>
+ <path class="o" d="M106 92Q124 98 108 108Z" fill="#7bbf4a"/>
+ <path class="o" d="M90 108Q106 124 122 108Q106 114 90 108Z" fill="#3a1d1d"/><path d="M96 110l3 7 3-6M108 111l3 7 3-7" fill="#fff" stroke="#fff" stroke-width="1"/>
+ <g class="weapon" data-base="rotate(8deg)" style="transform-origin:136px 146px;transform:rotate(8deg)">
+   <path class="o" d="M120 126L142 142L136 152L114 138Z" fill="#7bbf4a"/>
+   <path class="o" d="M139 88L148 142H130Z" fill="#d6dbe6"/><path d="M139 96L141 138" stroke="#fff" stroke-width="2" opacity=".7"/>
+   <rect class="o" x="126" y="140" width="22" height="6" rx="3" fill="#8a5a2c"/>
+   <circle class="o" cx="138" cy="148" r="7" fill="#8fd05a"/>
+ </g>
+</g>`);
+  },
+
+  orc(v) {
+    v = v || "base";
+    const P = { base: ["#78a457", "#56803c"], captain: ["#78a457", "#56803c"], berserker: ["#b0653f", "#84472a"], general: ["#5d8d4c", "#406a34"] }[v];
+    const skin = P[0], dk = P[1];
+    const eye = v === "berserker" ? "#ff3b30" : "#ffd24a";
+    let s = `<ellipse cx="102" cy="208" rx="56" ry="8" fill="#000" opacity=".32"/><g class="bob">`;
+    if (v === "general") s += `<g class="sway" style="transform-origin:76px 98px"><path class="o" d="M76 98C46 118 34 176 42 204L104 196L112 104Z" fill="#7a1420"/><path d="M72 110C58 138 54 172 58 196" stroke="#4a0c14" stroke-width="6" fill="none" stroke-linecap="round"/></g>`;
+    if (v === "berserker") s += `<g transform="rotate(-24 60 130)"><rect class="o" x="54" y="70" width="8" height="84" rx="3" fill="#7a5233"/><path class="o" d="M58 66Q30 70 32 96Q48 94 58 92Z M58 66Q86 70 84 96Q68 94 58 92Z" fill="#b8bfcc"/></g>`;
+    s += `<rect class="o" x="76" y="152" width="25" height="48" rx="9" fill="${dk}"/><rect class="o" x="106" y="152" width="25" height="48" rx="9" fill="${dk}"/>
+ <path class="o" d="M72 196h32q4 0 4 5v6H68v-6q0-5 4-5z" fill="#3a2a20"/><path class="o" d="M102 196h32q4 0 4 5v6h-40v-6q0-5 4-5z" fill="#3a2a20"/>
+ <path class="o" d="M58 106Q104 86 150 106L156 166Q104 182 52 166Z" fill="${skin}"/>
+ <path d="M70 112Q104 100 138 112L140 134Q104 142 68 134Z" fill="#fff" opacity=".1"/>
+ <path d="M84 140Q104 148 124 140M86 154Q104 162 122 154" stroke="${dk}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    if (v === "base") s += `<path d="M64 108L142 172" stroke="#3a2417" stroke-width="9" stroke-linecap="round"/><path class="o" d="M70 160h68l8 32H62z" fill="#6b4a2c"/>`;
+    if (v === "captain") s += `<path class="o" d="M62 108Q104 92 146 108L150 160Q104 174 58 160Z" fill="#8a94a6"/><path d="M72 114Q104 104 136 114L138 134Q104 142 70 134Z" fill="#dfe6f2" opacity=".35"/><circle cx="76" cy="124" r="3" fill="#3a4152"/><circle cx="132" cy="124" r="3" fill="#3a4152"/><path class="o" d="M70 160h68l8 32H62z" fill="#6b4a2c"/>`;
+    if (v === "berserker") s += `<path d="M74 118l24 14M78 134l24 14M122 116l-20 16" stroke="#c4202a" stroke-width="5" stroke-linecap="round"/><path d="M118 142l10 10M112 148l10 10" stroke="#f3d9c0" stroke-width="2" opacity=".8" stroke-linecap="round"/><path class="o" d="M70 160h68l8 32H62z" fill="#6b1f24"/><circle class="o" cx="104" cy="170" r="7" fill="#f4efe0"/>`;
+    if (v === "general") s += `<path class="o" d="M60 108Q104 90 148 108L154 164Q104 180 54 164Z" fill="#2c2a36"/><path d="M70 118Q104 106 138 118M72 140Q104 150 136 140" stroke="#e8b84a" stroke-width="3" fill="none"/><circle class="o" cx="104" cy="132" r="10" fill="#e8b84a"/><path class="o" d="M70 160h68l8 32H62z" fill="#4a0c14"/>`;
+    // back arm / shield
+    if (v === "captain") s += `<circle class="o" cx="62" cy="138" r="27" fill="#8a94a6"/><circle class="o" cx="62" cy="138" r="18" fill="#6b7384"/><circle class="o" cx="62" cy="138" r="8" fill="#c4202a"/>`;
+    else s += `<path class="o" d="M60 112L44 142L56 150L74 124Z" fill="${skin}"/><circle class="o" cx="50" cy="148" r="9" fill="${skin}"/>`;
+    // head
+    s += `<circle class="o" cx="108" cy="76" r="27" fill="${skin}"/>
+ <path class="o" d="M86 84Q108 114 132 86Q130 102 108 108Q86 102 86 84Z" fill="${skin}"/>
+ <path class="o" d="M96 98l-4 15 11-9zM120 98l4 15-11-9z" fill="#f4efe0"/>
+ <path d="M92 66L106 73M132 62L117 71" stroke="${dk}" stroke-width="5" stroke-linecap="round"/>
+ <circle cx="104" cy="76" r="4.2" fill="${eye}"/><circle cx="122" cy="75" r="4.2" fill="${eye}"/><circle cx="105" cy="77" r="1.8" fill="#0d0a16"/><circle cx="123" cy="76" r="1.8" fill="#0d0a16"/>
+ <path d="M110 82Q116 86 112 90" stroke="${dk}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    if (v === "berserker") s += `<g class="pulse" style="transform-origin:112px 76px"><circle cx="113" cy="76" r="30" fill="#ff3b30" opacity=".18"/></g><path class="o" d="M90 54L94 28L104 50L112 22L120 50L132 30L130 56Z" fill="#c4202a"/><path d="M96 90l24-4" stroke="#c4202a" stroke-width="4" stroke-linecap="round"/>`;
+    if (v === "captain") s += `<path class="o" d="M80 78Q80 42 108 42Q138 42 136 78L126 78V68H92V78Z" fill="#8a94a6"/><rect class="o" x="106" y="66" width="8" height="24" rx="3" fill="#8a94a6"/><path class="o sway" style="transform-origin:108px 44px" d="M104 44Q100 20 124 24Q114 34 118 46Z" fill="#c4202a"/>`;
+    if (v === "general") s += `<path class="o" d="M80 78Q80 42 108 42Q138 42 136 78L126 78V68H92V78Z" fill="#2c2a36"/><path d="M82 60Q108 50 134 60" stroke="#e8b84a" stroke-width="4" fill="none"/><path class="o" d="M86 58Q62 52 58 22Q80 36 96 50Z" fill="#e8dcc0"/><path class="o" d="M132 54Q156 48 158 18Q138 32 124 46Z" fill="#e8dcc0"/>`;
+    // pauldrons
+    if (v === "general") s += `<path class="o" d="M52 112l-4-18 14 8 6 16z" fill="#2c2a36"/><circle class="o" cx="62" cy="116" r="16" fill="#2c2a36"/><circle class="o" cx="146" cy="114" r="17" fill="#3a3848"/><path class="o" d="M138 100l6-18 6 18z" fill="#e8b84a"/>`;
+    if (v === "captain") s += `<circle class="o" cx="146" cy="114" r="15" fill="#8a94a6"/>`;
+    // weapon arm
+    const arm = `<path class="o" d="M126 110L154 130L146 146L120 128Z" fill="${skin}"/>`;
+    if (v === "base") s += `<g class="weapon" data-base="rotate(12deg)" style="transform-origin:152px 136px;transform:rotate(12deg)">${arm}<rect class="o" x="145" y="62" width="14" height="76" rx="6" fill="#7a5233"/><rect class="o" x="138" y="44" width="28" height="42" rx="13" fill="#8a6038"/><path class="o" d="M138 56l-8-4 8 12zM166 56l8-4-8 12zM152 44l0-10 6 10z" fill="#d6dbe6"/><circle class="o" cx="152" cy="138" r="10" fill="${skin}"/></g>`;
+    if (v === "captain") s += `<g class="weapon" data-base="rotate(12deg)" style="transform-origin:152px 136px;transform:rotate(12deg)">${arm}<rect class="o" x="146" y="44" width="12" height="92" rx="2" fill="#dfe6f2"/><path class="o" d="M146 44L152 22L158 44Z" fill="#dfe6f2"/><rect class="o" x="138" y="134" width="28" height="9" rx="3" fill="#6b4a2c"/><circle class="o" cx="152" cy="142" r="10" fill="${skin}"/></g>`;
+    if (v === "berserker") s += `<g class="weapon" data-base="rotate(12deg)" style="transform-origin:152px 136px;transform:rotate(12deg)">${arm}<rect class="o" x="148" y="52" width="9" height="86" rx="3" fill="#7a5233"/><path class="o" d="M152 48Q120 52 122 82Q140 80 152 78Z M152 48Q184 52 182 82Q164 80 152 78Z" fill="#c8ccd6"/><circle class="o" cx="152" cy="140" r="10" fill="${skin}"/></g>`;
+    if (v === "general") s += `<g class="weapon" data-base="rotate(12deg)" style="transform-origin:152px 140px;transform:rotate(12deg)">${arm}<path class="o" d="M140 124L144 14Q178 8 184 52L164 128Z" fill="#aab2c2"/><path d="M148 30Q172 26 176 54" stroke="#fff" stroke-width="3" fill="none" opacity=".6"/><rect class="o" x="146" y="124" width="14" height="30" rx="4" fill="#4a0c14"/><rect class="o" x="138" y="122" width="30" height="8" rx="3" fill="#e8b84a"/><circle class="o" cx="153" cy="146" r="10" fill="${skin}"/></g>`;
+    return svg("0 0 200 220", s + `</g>`);
+  },
+
+  dragon(P) {
+    P = P || { body: "#b3342e", dk: "#6e1620", belly: "#f0b45a", wing: "#8a2548", horn: "#e8dcc0", eye: "#ffd24a", rune: true };
+    return svg("0 0 320 240", `<ellipse cx="160" cy="230" rx="112" ry="8" fill="#000" opacity=".32"/>
+<g class="bob" style="transform-origin:160px 228px">
+ ${P.rune ? `<g class="pulse" style="transform-origin:160px 140px"><ellipse cx="160" cy="140" rx="120" ry="80" fill="#ff5a1f" opacity=".12"/></g>` : ""}
+ <g class="wing" style="transform-origin:150px 108px">
+  <path class="o" d="M148 110C124 72 100 42 66 18C80 52 76 62 88 76C96 58 104 66 110 86C120 72 128 82 136 102Z" fill="${P.wing}"/>
+  <path d="M148 110L66 18M148 110L88 76M148 110L110 86" stroke="${P.dk}" stroke-width="4" stroke-linecap="round" fill="none"/>
+ </g>
+ <g class="tail" style="transform-origin:100px 156px"><path class="o" d="M102 148C72 172 34 168 12 134C14 124 18 118 24 114C42 138 70 140 98 124Z" fill="${P.body}"/><path class="o" d="M14 134L2 112L28 122Z" fill="${P.dk}"/></g>
+ <path class="o" d="M114 176Q102 206 112 224L148 224Q152 200 150 184Z" fill="${P.dk}"/>
+ <path class="o" d="M110 224l-5 8 9-4 5 6 5-8z" fill="${P.horn}"/>
+ <ellipse class="o" cx="150" cy="152" rx="70" ry="48" fill="${P.body}"/>
+ <path d="M104 164Q150 208 202 168Q178 196 150 200Q124 196 104 164Z" fill="${P.belly}"/>
+ <path d="M122 182Q150 192 180 182M118 172Q150 184 188 172" stroke="${P.dk}" stroke-width="2" fill="none" opacity=".45"/>
+ ${P.rune ? `<path class="pulse" style="transform-origin:150px 140px" d="M120 130l12 8-6 10 14 6M168 126l-10 10 12 8-8 12" stroke="#ff8a3a" stroke-width="3" fill="none" stroke-linecap="round"/>` : ""}
+ <path class="o" d="M168 180Q164 208 172 224L208 224Q208 202 200 184Z" fill="${P.body}"/>
+ <path class="o" d="M168 224l-5 8 9-4 5 6 5-8z M190 224l-3 8 8-5 4 6 4-8z" fill="${P.horn}"/>
+ <path class="o" d="M184 128C206 110 212 86 214 62L248 80C242 102 234 130 216 164Z" fill="${P.body}"/>
+ <path d="M200 130C214 118 222 102 226 84" stroke="${P.belly}" stroke-width="10" fill="none" stroke-linecap="round" opacity=".5"/>
+ <path class="o" d="M120 112l7-16 7 16z M142 106l7-17 7 17z M164 106l7-17 7 17z M186 112l6-15 6 15z" fill="${P.dk}"/>
+ <g class="jaw" style="transform-origin:228px 88px"><path class="o" d="M226 86L284 80Q292 92 272 100L232 104Z" fill="${P.dk}"/><path d="M246 86l3 8 3-8M262 84l3 8 3-8" fill="#fff" stroke="#fff" stroke-width="1"/></g>
+ <path class="o" d="M206 60C216 38 250 34 278 48C294 54 300 68 286 76L240 90C214 96 200 80 206 60Z" fill="${P.body}"/>
+ <path d="M244 88l3-9 3 9M262 84l3-9 3 9" fill="#fff" stroke="#fff" stroke-width="1"/>
+ <circle cx="290" cy="62" r="3" fill="${P.dk}"/>
+ <path d="M236 50Q252 40 270 48" stroke="${P.dk}" stroke-width="6" fill="none" stroke-linecap="round"/>
+ <ellipse class="o" cx="254" cy="58" rx="8" ry="6" fill="${P.eye}"/><ellipse cx="256" cy="58" rx="2.4" ry="5.4" fill="#0d0a16"/>
+ <path class="o" d="M214 54C204 30 186 20 168 22C186 30 192 46 200 62Z" fill="${P.horn}"/>
+ <path class="o" d="M232 46C228 22 212 10 194 8C208 18 212 34 222 52Z" fill="${P.horn}"/>
+ <g class="mglow" style="opacity:0"><circle cx="286" cy="88" r="22" fill="#ffb347" opacity=".7"/><circle cx="286" cy="88" r="10" fill="#fff3b8"/></g>
+</g>`, "dragon-art");
+  },
+};
+
+/* 아이콘 */
+const ICON = {
+  sword: `<svg viewBox="0 0 48 48" class="ico"><path d="M30 6l12-2-2 12L20 36l-8-8z" fill="#dfe8f4" stroke="#0d0a16" stroke-width="2" stroke-linejoin="round"/><path d="M10 26l12 12-4 4-4-1-4 4-4-4 4-4-1-4z" fill="#e8b84a" stroke="#0d0a16" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  armor: `<svg viewBox="0 0 48 48" class="ico"><path d="M8 10l10-4h12l10 4v10l-6 4v16H14V24l-6-4z" fill="#9fb0c8" stroke="#0d0a16" stroke-width="2" stroke-linejoin="round"/><path d="M18 6q6 8 12 0" fill="#e8b84a" stroke="#0d0a16" stroke-width="2"/><path d="M24 20v22" stroke="#0d0a16" stroke-width="2"/></svg>`,
+  ring: `<svg viewBox="0 0 48 48" class="ico"><circle cx="24" cy="29" r="12" fill="none" stroke="#e8b84a" stroke-width="6"/><circle cx="24" cy="29" r="12" fill="none" stroke="#0d0a16" stroke-width="1.5"/><path d="M24 4l7 8-7 8-7-8z" fill="#ff5a6a" stroke="#0d0a16" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  attack: `<svg viewBox="0 0 24 24" class="bi"><path d="M16 3l5-1-1 5L9 18l-3-3zM5 15l4 4-2 2-2-1-2 2-2-2 2-2-1-2z" fill="currentColor"/></svg>`,
+  special: `<svg viewBox="0 0 24 24" class="bi"><path d="M12 2l2.6 6.4L21 9.2l-5 4.4 1.6 6.6L12 16.8 6.4 20.2 8 13.6 3 9.2l6.4-.8z" fill="currentColor"/></svg>`,
+  ult: `<svg viewBox="0 0 24 24" class="bi"><path d="M13 2L4 14h6l-2 8 10-13h-6z" fill="currentColor"/></svg>`,
+  potion: `<svg viewBox="0 0 24 24" class="bi"><path d="M9 2h6v2l-1 1v4l5 9q1 4-3 4H8q-4 0-3-4l5-9V5L9 4z" fill="currentColor"/></svg>`,
+};
+
+/* ---------- 유틸 ---------- */
+const $ = (s) => document.querySelector(s);
+const RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const wait = (ms) => new Promise((r) => setTimeout(r, RM ? ms * 0.4 : ms));
+const rnd = (a, b) => a + Math.random() * (b - a);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const anim = (el, kf, opt) => { try { return el.animate(kf, opt).finished.catch(() => {}); } catch (e) { return Promise.resolve(); } };
+
+/* ---------- 효과음 (WebAudio 합성) ---------- */
+const sfx = (() => {
+  let ctx = null, on = true;
+  function ac() {
+    if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ctx = null; } }
+    if (ctx && ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+  function tone(o) {
+    const c = on && ac(); if (!c) return;
+    const t0 = c.currentTime + (o.d || 0), os = c.createOscillator(), g = c.createGain();
+    os.type = o.type || "sine"; os.frequency.setValueAtTime(o.f, t0);
+    if (o.f2) os.frequency.exponentialRampToValueAtTime(o.f2, t0 + o.t);
+    g.gain.setValueAtTime(o.v == null ? 0.12 : o.v, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.t);
+    os.connect(g); g.connect(c.destination); os.start(t0); os.stop(t0 + o.t + 0.03);
+  }
+  function noise(o) {
+    const c = on && ac(); if (!c) return;
+    const len = Math.floor(c.sampleRate * o.t), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, o.curve || 1.5);
+    const s = c.createBufferSource(); s.buffer = buf;
+    const f = c.createBiquadFilter(); f.type = o.type || "bandpass"; f.frequency.value = o.fc || 1500; f.Q.value = o.q || 0.8;
+    const g = c.createGain(); g.gain.value = o.v == null ? 0.2 : o.v;
+    s.connect(f); f.connect(g); g.connect(c.destination); s.start(c.currentTime + (o.d || 0));
+  }
+  const arp = (notes, step, type, v) => notes.forEach((f, i) => tone({ f, t: 0.22, d: i * step, type: type || "triangle", v: v || 0.1 }));
+  return {
+    unlock: ac,
+    get on() { return on; }, set on(v) { on = v; },
+    ui: () => tone({ f: 520, f2: 760, t: 0.08, type: "square", v: 0.05 }),
+    whoosh: () => noise({ t: 0.18, fc: 1200, q: 0.5, v: 0.14, curve: 0.8 }),
+    slash: () => { noise({ t: 0.16, fc: 4200, q: 0.6, v: 0.2 }); tone({ f: 900, f2: 300, t: 0.12, type: "sawtooth", v: 0.05 }); },
+    hit: () => { noise({ t: 0.12, fc: 900, q: 0.7, v: 0.3 }); tone({ f: 160, f2: 55, t: 0.14, type: "square", v: 0.14 }); },
+    bighit: () => { noise({ t: 0.3, fc: 500, q: 0.6, v: 0.4 }); tone({ f: 110, f2: 38, t: 0.32, type: "sawtooth", v: 0.22 }); },
+    magic: () => { tone({ f: 380, f2: 1100, t: 0.3, type: "sine", v: 0.1 }); tone({ f: 760, f2: 1500, t: 0.3, type: "triangle", v: 0.05, d: 0.04 }); },
+    fire: () => { noise({ t: 0.9, fc: 700, q: 0.4, v: 0.3, curve: 0.5 }); tone({ f: 90, f2: 60, t: 0.9, type: "sawtooth", v: 0.1 }); },
+    boom: () => { noise({ t: 0.7, fc: 300, q: 0.5, v: 0.5, curve: 1 }); tone({ f: 90, f2: 28, t: 0.7, type: "sine", v: 0.35 }); },
+    roar: () => { tone({ f: 120, f2: 55, t: 0.9, type: "sawtooth", v: 0.2 }); noise({ t: 0.9, fc: 400, q: 0.5, v: 0.22, curve: 0.6 }); },
+    heal: () => arp([523, 659, 784, 1047], 0.07, "sine", 0.1),
+    buff: () => arp([392, 523, 659], 0.06, "triangle", 0.09),
+    level: () => arp([523, 659, 784, 1047, 1319], 0.09, "square", 0.07),
+    shield: () => { tone({ f: 300, f2: 900, t: 0.35, type: "triangle", v: 0.12 }); noise({ t: 0.3, fc: 3000, q: 1, v: 0.1 }); },
+    win: () => arp([523, 659, 784, 1047, 784, 1047, 1319], 0.12, "triangle", 0.12),
+    lose: () => arp([392, 349, 311, 262], 0.22, "sawtooth", 0.09),
+  };
+})();
+
+/* ---------- 파티클 엔진 ---------- */
+const cv = $("#cv"), stage = $("#stage"), stageIn = $("#stage-in"), fxl = $("#fxl");
+const ctx2 = cv.getContext("2d");
+let P = [], A = [], emitters = [], ambient = null, lastT = 0, cw = 0, ch = 0;
+
+function fitCanvas() {
+  const r = stage.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1);
+  if (!r.width) return;
+  cw = r.width; ch = r.height;
+  cv.width = Math.round(cw * d); cv.height = Math.round(ch * d);
+  ctx2.setTransform(d, 0, 0, d, 0, 0);
+}
+new ResizeObserver(fitCanvas).observe(stage);
+
+function emit(x, y, o) {
+  P.push({ x, y, vx: o.vx || 0, vy: o.vy || 0, age: 0, max: o.life || 500, size: o.size || 3, color: o.color || "#fff", grav: o.grav || 0, drag: o.drag == null ? 0.985 : o.drag, shrink: o.shrink !== false, rect: !!o.rect, rot: rnd(0, 6.28), vr: rnd(-0.2, 0.2) });
+}
+function burst(x, y, o) {
+  const n = RM ? Math.ceil((o.n || 20) / 3) : (o.n || 20), cols = o.color || ["#fff"];
+  for (let i = 0; i < n; i++) {
+    const a = (o.angle == null ? rnd(0, 6.283) : o.angle + (Math.random() - 0.5) * (o.spread == null ? 6.283 : o.spread));
+    const sp = (o.speed || 4) * rnd(0.35, 1.15);
+    emit(x, y, { vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: (o.life || 520) * rnd(0.6, 1.2), size: (o.size || 3) * rnd(0.6, 1.3), color: cols[(Math.random() * cols.length) | 0], grav: o.grav == null ? 0.1 : o.grav, drag: o.drag });
+  }
+}
+function orb(x, y, size, color) { emit(x, y, { life: 36, size, color, shrink: false, drag: 1 }); emit(x, y, { life: 36, size: size * 0.55, color: "#fff", shrink: false, drag: 1 }); }
+function trail(x, y, color, size) { emit(x + rnd(-3, 3), y + rnd(-3, 3), { life: 340, size: (size || 6) * rnd(0.4, 0.9), color, vx: rnd(-0.3, 0.3), vy: rnd(-0.3, 0.3) }); }
+
+function setAmbient(a) {
+  A = []; ambient = a;
+  if (!a || RM) return;
+  for (let i = 0; i < a.n; i++) A.push(spawnAmb(true));
+}
+function spawnAmb(init) {
+  const w = cw || 700, h = ch || 400, rise = ambient.rise;
+  return { x: rnd(0, w), y: init ? rnd(0, h) : (rise ? h + 10 : rnd(h * 0.3, h * 0.85)), vx: rnd(-0.15, 0.15), vy: rise ? -rnd(0.2, 0.7) : rnd(-0.12, 0.12), ph: rnd(0, 6.28), s: rnd(1, 2.6) };
+}
+
+function tick(t) {
+  const dt = Math.min(48, t - lastT || 16); lastT = t;
+  const k = dt / 16.67;
+  if (stage.offsetParent !== null && cw) {
+    ctx2.clearRect(0, 0, cw, ch);
+    ctx2.globalCompositeOperation = "lighter";
+    // ambient
+    if (ambient && !RM) {
+      for (const a of A) {
+        a.ph += 0.03 * k; a.x += (a.vx + (ambient.rise ? Math.sin(a.ph) * 0.3 : 0)) * k; a.y += a.vy * k;
+        if (a.y < -12 || a.y > ch + 14 || a.x < -10 || a.x > cw + 10) Object.assign(a, spawnAmb(false));
+        const al = ambient.rise ? 0.55 : 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(a.ph * 1.6));
+        ctx2.globalAlpha = al; ctx2.fillStyle = ambient.c;
+        ctx2.beginPath(); ctx2.arc(a.x, a.y, a.s * (ambient.rise ? 1 : 1.4), 0, 6.283); ctx2.fill();
+        if (!ambient.rise) { ctx2.globalAlpha = al * 0.25; ctx2.beginPath(); ctx2.arc(a.x, a.y, a.s * 4, 0, 6.283); ctx2.fill(); }
+      }
+    }
+    // emitters
+    for (let i = emitters.length - 1; i >= 0; i--) { const e = emitters[i]; if (t > e.until) emitters.splice(i, 1); else e.fn(t); }
+    // particles
+    for (let i = P.length - 1; i >= 0; i--) {
+      const p = P[i]; p.age += dt;
+      if (p.age >= p.max) { P.splice(i, 1); continue; }
+      p.vy += p.grav * k; p.vx *= Math.pow(p.drag, k); p.vy *= Math.pow(p.drag, k); p.x += p.vx * k; p.y += p.vy * k; p.rot += p.vr * k;
+      const u = p.age / p.max, r = p.size * (p.shrink ? 1 - u * 0.85 : 1);
+      ctx2.globalAlpha = Math.max(0, 1 - u * u);
+      ctx2.fillStyle = p.color;
+      ctx2.beginPath(); ctx2.arc(p.x, p.y, Math.max(0.3, r), 0, 6.283); ctx2.fill();
+    }
+    ctx2.globalAlpha = 1; ctx2.globalCompositeOperation = "source-over";
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* ---------- 화면 이펙트 DOM ---------- */
+function shake(amp, ms) {
+  if (RM) return;
+  const k = [];
+  for (let i = 0; i < 9; i++) k.push({ transform: `translate(${rnd(-amp, amp)}px,${rnd(-amp, amp)}px)` });
+  k.push({ transform: "none" });
+  anim(stageIn, k, { duration: ms || 320, easing: "linear" });
+}
+function flash(color, peak, ms) {
+  const f = $("#flash"); f.style.background = color || "#fff";
+  anim(f, [{ opacity: 0 }, { opacity: peak == null ? 0.6 : peak, offset: 0.2 }, { opacity: 0 }], { duration: ms || 320 });
+}
+function floatNum(x, y, text, kind) {
+  const d = document.createElement("div");
+  d.className = "fnum " + (kind || "dmg"); d.textContent = text;
+  d.style.left = x + rnd(-10, 10) + "px"; d.style.top = y + "px";
+  fxl.appendChild(d); setTimeout(() => d.remove(), 1050);
+}
+function ringFx(x, y, color, size, ms) {
+  const r = document.createElement("div"); r.className = "ring";
+  r.style.cssText = `left:${x}px;top:${y}px;width:${size}px;height:${size}px;border-color:${color};box-shadow:0 0 18px ${color}`;
+  fxl.appendChild(r);
+  anim(r, [{ transform: "translate(-50%,-50%) scale(.15)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1.6)", opacity: 0 }], { duration: ms || 520, easing: "ease-out" }).then(() => r.remove());
+}
+function pillarFx(x, color, ms, width) {
+  const p = document.createElement("div"); p.className = "pillar";
+  p.style.cssText = `left:${x}px;width:${width || 90}px;background:linear-gradient(90deg,transparent,${color} 35%,#fff 50%,${color} 65%,transparent)`;
+  fxl.appendChild(p);
+  anim(p, [{ opacity: 0, transform: "translateX(-50%) scaleX(.1)" }, { opacity: 1, transform: "translateX(-50%) scaleX(1)", offset: 0.25 }, { opacity: 0, transform: "translateX(-50%) scaleX(.5)" }], { duration: ms || 700, easing: "ease-out" }).then(() => p.remove());
+}
+function slashFx(x, y, o) {
+  o = o || {};
+  const size = o.size || 130, el = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  el.setAttribute("viewBox", "0 0 140 140"); el.setAttribute("class", "slash");
+  el.style.cssText = `left:${x - size / 2}px;top:${y - size / 2}px;width:${size}px;height:${size}px;transform:rotate(${o.angle == null ? -20 : o.angle}deg) scaleX(${o.flip ? -1 : 1});filter:drop-shadow(0 0 8px ${o.color || "#fff"})`;
+  el.innerHTML = `<path d="M10 118Q60 14 128 22Q74 44 10 118Z" fill="${o.color || "#fff"}" opacity=".95"/><path d="M24 108Q64 34 116 29Q72 54 24 108Z" fill="#fff" opacity=".92"/>`;
+  fxl.appendChild(el);
+  anim(el, [{ opacity: 0, clipPath: "inset(0 100% 0 0)" }, { opacity: 1, clipPath: "inset(0 0 0 0)", offset: 0.35 }, { opacity: 0, clipPath: "inset(0 0 0 0)" }], { duration: o.ms || 340, easing: "ease-out" }).then(() => el.remove());
+}
+function boltFx(x, y, o) {
+  o = o || {}; const H = Math.max(120, y), N = 9, W = 200, thin = !!o.thin, pts = [];
+  for (let i = 0; i <= N; i++) pts.push([W / 2 + (i === N ? 0 : (i ? (Math.random() - 0.5) * (thin ? 44 : 64) : 0)), (H * i) / N]);
+  const path = pts.map((q, i) => (i ? "L" : "M") + q[0].toFixed(1) + " " + q[1].toFixed(1)).join("");
+  let br = "";
+  if (!thin) for (let k = 0; k < 3; k++) { const b = pts[2 + k * 2]; br += `<path d="M${b[0]} ${b[1]}l${(Math.random() - 0.5) * 90} ${28 + Math.random() * 30}l${(Math.random() - 0.5) * 60} ${24 + Math.random() * 24}" stroke="#bfe6ff" stroke-width="3" fill="none" stroke-linejoin="round"/>`; }
+  const el = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  el.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  el.style.cssText = `position:absolute;left:${x - W / 2}px;top:0;width:${W}px;height:${H}px;pointer-events:none;overflow:visible;filter:drop-shadow(0 0 14px #6ec8ff) drop-shadow(0 0 30px #a8e4ff)`;
+  el.innerHTML = `<path d="${path}" stroke="#6ec8ff" stroke-width="${thin ? 7 : 20}" fill="none" stroke-linejoin="round" opacity=".7"/>${br}<path d="${path}" stroke="#fff" stroke-width="${thin ? 2.4 : 7}" fill="none" stroke-linejoin="round"/>`;
+  fxl.appendChild(el);
+  anim(el, [{ opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 0.25, offset: 0.28 }, { opacity: 1, offset: 0.42 }, { opacity: 0 }], { duration: thin ? 360 : 620 }).then(() => el.remove());
+}
+function patronusFx(a, b) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  el.setAttribute("viewBox", "0 0 100 80");
+  el.style.cssText = `position:absolute;left:${a.x - 60}px;top:${a.y - 50}px;width:120px;height:96px;pointer-events:none;overflow:visible;filter:drop-shadow(0 0 8px #bfe6ff) drop-shadow(0 0 22px #fff)`;
+  el.innerHTML = `<g fill="#eaf6ff" stroke="#bfe6ff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><ellipse cx="42" cy="46" rx="26" ry="12"/><path d="M62 42L76 24L84 24L82 32L72 48Z"/><path d="M78 22Q88 18 94 24L96 30L84 32Z"/><path d="M26 56L20 76M36 58L34 76M54 58L58 76M64 56L72 74" fill="none" stroke-width="4"/><path d="M80 22L78 8M78 14L70 8M79 11L86 3M83 20L90 10" fill="none" stroke-width="2.4"/><path d="M18 42L8 36" fill="none" stroke-width="4"/></g>`;
+  fxl.appendChild(el);
+  const dx = b.x - a.x, dy = b.y - a.y;
+  return anim(el, [{ transform: "translate(0,0) scale(.4)", opacity: 0 }, { transform: `translate(${dx * 0.25}px,${dy * 0.25 - 60}px) scale(.9)`, opacity: 1, offset: 0.3 }, { transform: `translate(${dx * 0.65}px,${dy * 0.65 - 40}px) scale(1.3)`, opacity: 1, offset: 0.7 }, { transform: `translate(${dx}px,${dy}px) scale(1.9)`, opacity: 0.2 }], { duration: 820, easing: "ease-in" }).then(() => el.remove());
+}
+function clawFx(x, y, color) {
+  for (let i = 0; i < 3; i++) setTimeout(() => slashFx(x + (i - 1) * 22, y + (i - 1) * 6, { color, angle: 62, size: 110, ms: 280 }), i * 60);
+}
+function travel(from, to, ms, color, size) {
+  return new Promise((res) => {
+    const t0 = performance.now(), d = RM ? ms * 0.4 : ms;
+    const step = (t) => {
+      const u = Math.min(1, (t - t0) / d), e = u * u * (3 - 2 * u * 0.9);
+      const x = from.x + (to.x - from.x) * u, y = from.y + (to.y - from.y) * e - Math.sin(u * Math.PI) * (o_arc(from, to));
+      orb(x, y, size, color); trail(x, y, color, size);
+      if (u < 1) requestAnimationFrame(step); else res();
+    };
+    requestAnimationFrame(step);
+  });
+}
+function o_arc(a, b) { return Math.abs(b.x - a.x) * 0.06; }
+function stream(fromPt, toPt, ms, colors) {
+  const until = performance.now() + (RM ? ms * 0.4 : ms);
+  emitters.push({ until, fn: () => {
+    const dx = toPt.x - fromPt.x, dy = toPt.y - fromPt.y, L = Math.hypot(dx, dy) || 1;
+    for (let i = 0; i < 7; i++) {
+      const sp = rnd(7, 11), a = Math.atan2(dy, dx) + rnd(-0.16, 0.16);
+      emit(fromPt.x, fromPt.y, { vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + rnd(-0.6, 0.2), life: L / sp * 16.7 * rnd(0.7, 1.05), size: rnd(5, 12), color: colors[(Math.random() * colors.length) | 0], grav: -0.02, drag: 0.992, shrink: true });
+    }
+  } });
+  return wait(ms);
+}
+function confetti() {
+  const c = $("#confetti"), g = c.getContext("2d"); c.width = innerWidth; c.height = innerHeight;
+  const cols = ["#f0a43a", "#ffe27a", "#5ec58a", "#5aa7f0", "#ff7a6a", "#fff"], list = [];
+  for (let i = 0; i < (RM ? 30 : 170); i++) list.push({ x: rnd(0, c.width), y: rnd(-c.height * 0.6, 0), vx: rnd(-1.5, 1.5), vy: rnd(2, 5.5), w: rnd(6, 12), h: rnd(4, 8), r: rnd(0, 6.28), vr: rnd(-0.2, 0.2), col: cols[(Math.random() * cols.length) | 0] });
+  const t0 = performance.now();
+  (function f(t) {
+    g.clearRect(0, 0, c.width, c.height);
+    list.forEach((p) => { p.x += p.vx; p.y += p.vy; p.r += p.vr; g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.col; g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); g.restore(); });
+    if (t - t0 < 5200) requestAnimationFrame(f); else g.clearRect(0, 0, c.width, c.height);
+  })(t0);
+}
+
+/* ---------- 스테이지 배경 ---------- */
+function rng(seed) { return function () { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const THEMES = [
+  { name: "달빛 숲", top: "#08121f", bot: "#25525c", cel: "#eaf4ff", cx: 0.76, cy: 0.2, cr: 30, glow: "rgba(170,215,255,.4)", far: "#143a45", mid: "#0f2d36", near: "#07161c", ground: "#0b1d1e", edge: "#3b8a68", kind: "pine", stars: 46, amb: { c: "#d6ff8a", n: 28, rise: false }, banner: "#9fe8c4" },
+  { name: "고대 유적", top: "#150e2d", bot: "#4a3478", cel: "#f1e4ff", cx: 0.22, cy: 0.22, cr: 26, glow: "rgba(200,170,255,.4)", far: "#2d2255", mid: "#211a46", near: "#120d29", ground: "#17112e", edge: "#8a6ad8", kind: "pillar", stars: 36, amb: { c: "#b79cff", n: 24, rise: true }, banner: "#c6b0ff" },
+  { name: "오크 요새", top: "#260c10", bot: "#74291f", cel: "#ff9a52", cx: 0.5, cy: 0.34, cr: 56, glow: "rgba(255,120,60,.45)", far: "#3e171a", mid: "#2d1013", near: "#190809", ground: "#1f0d0d", edge: "#c8583a", kind: "spike", stars: 0, amb: { c: "#ff9a4a", n: 34, rise: true }, banner: "#ffab70" },
+  { name: "용의 둥지", top: "#170404", bot: "#85200f", cel: "#ffb869", cx: 0.5, cy: 0.42, cr: 78, glow: "rgba(255,110,40,.5)", far: "#2c0a08", mid: "#1f0705", near: "#0e0303", ground: "#1b0805", edge: "#ff6a28", kind: "stalag", stars: 0, lava: true, amb: { c: "#ff7a2a", n: 52, rise: true }, banner: "#ff8a5a" },
+];
+function bgHTML(th, seed) {
+  const R = rng(seed || 7), W = 760, H = 460, GY = 352;
+  const ridge = (y, amp, step, col) => { let d = `M0 ${H} L0 ${y}`; for (let x = 0; x <= W + step; x += step) d += ` L${x} ${y - R() * amp}`; return `<path d="${d} L${W} ${H}Z" fill="${col}"/>`; };
+  const pine = (x, b, h, col) => { const w = h * 0.36; return `<path d="M${x} ${b - h} L${x + w * .5} ${b - h * .62} L${x + w * .3} ${b - h * .62} L${x + w * .7} ${b - h * .3} L${x + w * .4} ${b - h * .3} L${x + w} ${b} L${x - w} ${b} L${x - w * .4} ${b - h * .3} L${x - w * .7} ${b - h * .3} L${x - w * .3} ${b - h * .62} L${x - w * .5} ${b - h * .62}Z" fill="${col}"/>`; };
+  const pillar = (x, b, h, w, col) => `<path d="M${x} ${b} V${b - h} L${x + w * .3} ${b - h - 9} L${x + w * .55} ${b - h + 7} L${x + w} ${b - h - 5} V${b}Z" fill="${col}"/><rect x="${x - 4}" y="${b - 8}" width="${w + 8}" height="8" fill="${col}"/>`;
+  const spike = (x, b, h, w, col) => `<path d="M${x} ${b} L${x + w / 2} ${b - h} L${x + w} ${b}Z" fill="${col}"/>`;
+  const banner = (x, b, h, col) => `<rect x="${x}" y="${b - h}" width="3" height="${h}" fill="${col}"/><path d="M${x + 3} ${b - h} h26 l-6 12 6 12 h-26z" fill="#7a1420"/>`;
+  const stal = (x, b, h, w, col) => `<path d="M${x} ${b} L${x + w * .4} ${b - h} L${x + w * .55} ${b - h * .6} L${x + w} ${b}Z" fill="${col}"/>`;
+  const ceil = (x, h, w, col) => `<path d="M${x} -2 L${x + w} -2 L${x + w * .45} ${h}Z" fill="${col}"/>`;
+  let svg = "", far = ridge(260, 70, 60, th.far), mid = "", near = "";
+  if (th.kind === "pine") {
+    for (let x = 10; x < W; x += 34 + R() * 30) mid += pine(x, GY - 6, 90 + R() * 70, th.mid);
+    for (let x = -10; x < 120; x += 46) near += pine(x, GY + 40, 220 + R() * 60, th.near);
+    for (let x = W - 120; x < W + 20; x += 46) near += pine(x, GY + 40, 220 + R() * 60, th.near);
+  } else if (th.kind === "pillar") {
+    for (let x = 20; x < W; x += 70 + R() * 70) mid += pillar(x, GY - 4, 70 + R() * 110, 26 + R() * 10, th.mid);
+    mid += `<path d="M300 ${GY - 4} V180 Q380 120 460 180 V${GY - 4} H440 V190 Q380 150 320 190 V${GY - 4}Z" fill="${th.mid}"/>`;
+    near += pillar(-6, GY + 40, 300, 58, th.near) + pillar(W - 56, GY + 40, 270, 62, th.near);
+  } else if (th.kind === "spike") {
+    for (let x = 10; x < W; x += 40 + R() * 40) mid += spike(x, GY - 4, 60 + R() * 90, 26 + R() * 18, th.mid);
+    mid += banner(150, GY - 4, 140, th.mid) + banner(600, GY - 4, 160, th.mid);
+    for (let x = -10; x < 110; x += 36) near += spike(x, GY + 40, 190 + R() * 90, 44, th.near);
+    for (let x = W - 110; x < W + 20; x += 36) near += spike(x, GY + 40, 190 + R() * 90, 44, th.near);
+  } else {
+    for (let x = 0; x < W; x += 50 + R() * 40) mid += stal(x, GY - 4, 50 + R() * 100, 34 + R() * 26, th.mid);
+    for (let x = 0; x < W; x += 56 + R() * 46) mid += ceil(x, 50 + R() * 90, 40 + R() * 30, th.mid);
+    for (let x = -10; x < 110; x += 40) near += stal(x, GY + 40, 150 + R() * 100, 60, th.near);
+    for (let x = W - 110; x < W + 20; x += 40) near += stal(x, GY + 40, 150 + R() * 100, 60, th.near);
+  }
+  let stars = "";
+  for (let i = 0; i < th.stars; i++) stars += `<circle cx="${R() * W}" cy="${R() * 200}" r="${0.6 + R() * 1.3}" fill="#fff" opacity="${0.3 + R() * 0.6}"/>`;
+  const ground = `<path d="M0 ${GY} Q190 ${GY - 10} 380 ${GY - 2} T${W} ${GY - 6} V${H} H0Z" fill="${th.ground}"/><path d="M0 ${GY} Q190 ${GY - 10} 380 ${GY - 2} T${W} ${GY - 6}" stroke="${th.edge}" stroke-width="2" fill="none" opacity=".55"/>`;
+  const lava = th.lava ? `<g class="lava"><rect x="0" y="${GY + 34}" width="${W}" height="10" fill="#ff5a1f" opacity=".5"/><rect x="0" y="${GY + 30}" width="${W}" height="18" fill="#ff7a2a" opacity=".16"/></g>` : "";
+  return `<div class="sky" style="background:linear-gradient(${th.top},${th.bot})"></div>
+<div class="cel" style="left:${th.cx * 100}%;top:${th.cy * 100}%;width:${th.cr * 2}px;height:${th.cr * 2}px;background:${th.cel};box-shadow:0 0 ${th.cr * 2}px ${th.cr * 0.8}px ${th.glow}"></div>
+<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice">${stars}${far}${mid}${ground}${lava}${near}</svg>`;
+}
+
+/* ---------- 이벤트 큐: 로직은 즉시 계산하고 연출은 순서대로 재생 ---------- */
+const Q = [];
+const log = (text, cls) => Q.push({ t: "log", text, cls });
+let totalCount = 0, monsterCount = 0;
+
+/* ---------- 캐릭터 클래스 (Python 원본 로직) ---------- */
+const GROWTH = {
+  archmage: { hp: 32, atk: 8, def: 4 },
+  warrior: { hp: 40, atk: 7, def: 5 },
+  wizard: { hp: 30, atk: 9, def: 3 },
+  healer: { hp: 35, atk: 6, def: 4 },
+  darkwizard: { hp: 30, atk: 9, def: 3 },
+  hero: { hp: 35, atk: 8, def: 5 },
+  yeon: { hp: 200, atk: 100, def: 100 },
+};
+class Character {
+  constructor(name, hp, atk, def) {
+    this.name = name; this.maxHp = hp; this._hp = hp; this.atk = atk; this.def = def; this.exp = 0; this.level = 1;
+    totalCount++;
+  }
+  get hp() { return this._hp; }
+  set hp(v) { this._hp = Math.max(0, Math.min(this.maxHp, v)); }
+  get alive() { return this._hp > 0; }
+  static calcDamage(a, d) { return Math.max(1, a - d); }
+  takeDamage(dmg, o) {
+    const actual = Character.calcDamage(dmg, this.def);
+    this.hp -= actual;
+    log(`${this.name}이(가) ${actual}의 데미지를 받았다! (남은 HP: ${this.hp})`, "dmg");
+    Q.push({ t: "dmg", who: this, amount: actual, hp: this.hp, big: !!(o && o.big) });
+    return actual;
+  }
+  heal(n) {
+    const b = this.hp; this.hp += n;
+    Q.push({ t: "heal", who: this, amount: this.hp - b, hp: this.hp });
+  }
+  attack(o) {
+    log(`⚔️ ${this.name}이(가) ${o.name}을(를) 공격!`, "act");
+    o.takeDamage(this.atk);
+  }
+  gainExp(n) {
+    this.exp += n;
+    log(`${this.name}이(가) 경험치 ${n}를 획득! (총 경험치: ${this.exp})`, "good");
+    while (this.exp >= this.level * 100) this.levelUp();
+  }
+  levelUp() {
+    const g = GROWTH[this.key] || { hp: 20, atk: 5, def: 3 };
+    this.level++; this.maxHp += g.hp; this._hp = this.maxHp; this.atk += g.atk; this.def += g.def;
+    log(`🎉 레벨 업! ${this.name} → Lv.${this.level}! (HP +${g.hp}, 공격 +${g.atk}, 방어 +${g.def})`, "lvl");
+    Q.push({ t: "level", who: this });
+  }
+}
+
+class Warrior extends Character {
+  constructor(n) { super(n, 230, 50, 24); this.rage = 0; this.kind = "전사"; this.key = "warrior"; }
+  attack(o) { log(`⚔️ ${this.name}이(가) ${o.name}에게 강력한 검 베기!`, "act"); this.rage += 10; o.takeDamage(this.atk); }
+  canSpecial() { return this.rage >= 30; }
+  special(o) { log(`🔥 ${this.name}의 분노 폭발!`, "act"); this.rage -= 30; o.takeDamage(this.atk * 2, { big: true }); }
+  canUltimate() { return this.rage >= 100; }
+  ultimate(o) {
+    log(`💥💥 ${this.name}의 궁극기! [파멸의 대지 가르기]!! 💥💥`, "act");
+    this.rage -= 100; o.takeDamage(Math.floor(this.atk * 8.5), { big: true }); this.def += 15;
+    log(`🛡️ 방어 자세로 방어력이 +15 증가합니다! (현재 방어력: ${this.def})`, "good");
+  }
+  resource() { return { label: "분노", v: this.rage, max: 100, cls: "rage" }; }
+  names() { return { sp: "분노 폭발", spSub: "분노 30 소모 · 공격력 ×2", ul: "파멸의 대지 가르기", ulSub: "분노 100 · ×8.5", atkSub: "분노 +10" }; }
+}
+class Wizard extends Character {
+  constructor(n) { super(n, 90, 36, 9); this.mana = 100; this.kind = "마법사"; this.key = "wizard"; }
+  canBolt() { return this.mana >= 10; }
+  attack(o) {
+    if (this.mana >= 10) { log(`🔴 ${this.name}이(가) ${o.name}에게 [익스펠리아르무스]! 붉은 섬광!`, "act"); this.mana -= 10; o.takeDamage(Math.floor(this.atk * 1.1)); this.regen(25); }
+    else { log(`👊 ${this.name}이(가) ${o.name}을(를) 마법봉으로 찌른다! (마나 부족)`, "act"); o.takeDamage(5); this.regen(20); }
+  }
+  regen(n) { const b = this.mana; this.mana = Math.min(100, this.mana + n); log(`✨ 마나 회복! +${this.mana - b} (현재 마나: ${this.mana}/100)`, "good"); }
+  canSpecial() { return this.mana >= 40; }
+  special(o) { log(`⚡ ${this.name}의 [스투페파이]! 눈부신 붉은 섬광이 터집니다!`, "act"); this.mana -= 40; o.takeDamage(Math.floor(this.atk * 3.5), { big: true }); }
+  canUltimate() { return this.mana >= 60; }
+  ultimate(o) {
+    log(`💥💥 ${this.name}의 궁극기! [봄바르다 맥시마]!! 모든 것을 날려버리는 대폭발! 💥💥`, "act");
+    this.mana -= 60;
+    log("🔥 폭발이 방어를 꿰뚫습니다! (방어 무시)", "bad");
+    o.takeDamage(Math.floor(this.atk * 8) + o.def, { big: true });
+  }
+  resource() { return { label: "마나", v: this.mana, max: 100, cls: "mana" }; }
+  names() { return { sp: "스투페파이", spSub: "마나 40 · 공격력 ×3.5", ul: "봄바르다 맥시마", ulSub: "마나 60 · 방어 무시 ×8 · 대폭발", atkSub: "익스펠리아르무스 · 마나 -10 +25" }; }
+}
+class Healer extends Character {
+  constructor(n) { super(n, 100, 15, 10); this.mana = 80; this.kind = "힐러"; this.key = "healer"; }
+  attack(o) { log(`✨ ${this.name}이(가) ${o.name}에게 빛의 화살!`, "act"); o.takeDamage(this.atk); const b = this.mana; this.mana = Math.min(80, this.mana + 15); log(`✨ 마나 회복! +${this.mana - b} (현재 마나: ${this.mana}/80)`, "good"); }
+  canSpecial() { return this.mana >= 30; }
+  special() { log(`💚 ${this.name}을(를) 치유! ${this.name}의 HP +40`, "good"); this.mana -= 30; this.heal(40); log(`${this.name}의 현재 HP: ${this.hp}`, "good"); }
+  canUltimate() { return this.mana >= 50; }
+  ultimate() {
+    log(`👼👼 ${this.name}의 궁극기! [신의 은총]!! 👼👼`, "act");
+    this.mana -= 50; this.heal(this.maxHp); this.atk += 15;
+    log(`✨ HP가 완전히 회복되고, 공격력이 +15 증가합니다! (현재 HP: ${this.hp} | 공격력: ${this.atk})`, "good");
+  }
+  resource() { return { label: "마나", v: this.mana, max: 80, cls: "mana" }; }
+  names() { return { sp: "치유", spSub: "마나 30 · HP +40", ul: "신의 은총", ulSub: "마나 50 · HP 완쾌, 공격 +15", atkSub: "빛의 화살 · 마나 +15" }; }
+}
+class Archmage extends Character {
+  constructor(n) { super(n, 130, 34, 12); this.mana = 120; this.ward = 0; this.kind = "대마법사"; this.key = "archmage"; }
+  canBolt() { return this.mana >= 10; }
+  regen(n) { const b = this.mana; this.mana = Math.min(120, this.mana + n); log(`✨ 마나 회복! +${this.mana - b} (현재 마나: ${this.mana}/120)`, "good"); }
+  attack(o) {
+    if (this.mana >= 10) { log(`✨ ${this.name}이(가) ${o.name}에게 [엘더 완드 광선]!`, "act"); this.mana -= 10; o.takeDamage(this.atk); this.regen(25); }
+    else { log(`👊 ${this.name}이(가) ${o.name}을(를) 마법봉으로 찌른다! (마나 부족)`, "act"); o.takeDamage(5); this.regen(20); }
+  }
+  canSpecial() { return this.mana >= 40; }
+  special(o) {
+    log(`🔥 ${this.name}의 [불꽃의 채찍]! 불타는 채찍이 적을 휘감습니다!`, "act");
+    this.mana -= 40; o.takeDamage(Math.floor(this.atk * 3.4), { big: true });
+    this.ward = 1; log("🛡️ 불꽃 장막이 몸을 감쌉니다! (다음 피격 피해 50% 감소)", "good");
+  }
+  canUltimate() { return this.mana >= 70; }
+  ultimate(o) {
+    log(`🔴💥 ${this.name}의 궁극기! [엑스펠리아르무스]!! 붉은 섬광이 모든 것을 날려버립니다! 💥🔴`, "act");
+    this.mana -= 70; log("🔴 막강한 마력이 방어를 완전히 꿰뚫습니다! (방어 무시)", "good");
+    const raw = Math.floor(this.atk * 14) + o.def;
+    o.takeDamage(o.guarding ? Math.ceil(raw / Math.max(0.01, 1 - o.guardRed)) : raw, { big: true });
+    if (o.alive) { const b = o.atk; o.atk = Math.max(1, Math.floor(o.atk * 0.5)); log(`🪄 무장 해제! ${o.name}의 공격력이 절반으로 줄었습니다! (${b} → ${o.atk})`, "good"); }
+  }
+  takeDamage(dmg, o) {
+    if (this.ward > 0) { this.ward--; dmg = this.def + Math.max(1, Math.floor(Character.calcDamage(dmg, this.def) * 0.5)); log("🛡️ 불꽃 장막이 피해를 절반으로 줄였습니다!", "good"); }
+    return super.takeDamage(dmg, o);
+  }
+  resource() { return { label: this.ward > 0 ? "마나 🛡" : "마나", v: this.mana, max: 120, cls: "mana" }; }
+  names() { return { sp: "불꽃의 채찍", spSub: "마나 40 · ×3.4 · 불꽃 장막", ul: "엑스펠리아르무스", ulSub: "마나 70 · ×14 방어 무시 · 무장 해제(적 공격 -50%)", atkSub: "엘더 완드 광선 · 마나 -10 +25" }; }
+}
+class DarkWizard extends Character {
+  constructor(n) { super(n, 90, 36, 9); this.mana = 100; this.horcrux = true; this.kind = "흑마법사"; this.key = "darkwizard"; }
+  gain(n) { const b = this.mana; this.mana = Math.min(100, this.mana + n); log(`✨ 마나 회복! +${this.mana - b} (현재 마나: ${this.mana}/100)`, "good"); }
+  attack(o) {
+    log(`🩸 ${this.name}이(가) ${o.name}에게 [크루시오]! 고통의 저주!`, "act");
+    o.takeDamage(this.atk);
+    o._cruc = o._cruc || 0;
+    if (o._cruc < 5) { o._cruc++; o.def = Math.max(0, o.def - 2); log(`😖 고통에 몸부림칩니다. ${o.name}의 방어력 -2 (현재 ${o.def}, 최대 -10)`, "good"); }
+    this.gain(15);
+  }
+  canSpecial() { return this.mana >= 45 && this.hp > Math.floor(this.maxHp * 0.1); }
+  special(o) {
+    log(`🔥 ${this.name}의 [악마의 불길]! 저주받은 화염이 모든 것을 집어삼킵니다!`, "act");
+    this.mana -= 45; o.takeDamage(Math.floor(this.atk * 3.5), { big: true });
+    const c = Math.floor(this.maxHp * 0.1); this.hp -= c;
+    log(`🩸 불길이 주인마저 삼킵니다... HP -${c}`, "bad");
+    Q.push({ t: "dmg", who: this, amount: c, hp: this.hp });
+  }
+  canUltimate() { return this.mana >= 70; }
+  ultimate(o) {
+    log(`💀💀 ${this.name}의 궁극기! [아바다 케다브라]!! 💀💀`, "act");
+    this.mana -= 70; const ds = Math.floor(this.maxHp * 0.3); this.heal(ds); log(`🩸 저주가 영혼을 흡수합니다! HP +${ds}`, "good");
+    const k = Math.ceil((o.hp + (o.shield || 0) + o.def + 1) / (o.guarding ? Math.max(0.01, 1 - o.guardRed) : 1));
+    log(`☠️ 죽음의 저주가 생명을 끊어냅니다! (무조건 즉사${o.boss ? " · 보스도 예외 없음" : ""})`, "bad");
+    o.takeDamage(k, { big: true });
+  }
+  canRevive() { return this.horcrux; }
+  revive() {
+    this.horcrux = false;
+    log(`⚱️ [호크룩스] ${this.name}의 영혼 조각이 부서지며 육체가 되살아납니다!`, "lvl");
+    this.heal(Math.floor(this.maxHp * 0.5)); this.mana = Math.min(100, this.mana + 30);
+    log(`💚 HP ${this.hp}로 부활! 마나 +30 (호크룩스 소멸)`, "good");
+  }
+  resource() { return { label: this.horcrux ? "마나 ⚱️" : "마나", v: this.mana, max: 100, cls: "mana" }; }
+  names() { return { sp: "악마의 불길", spSub: "마나 45 · ×3.5 · 내 HP -10%", ul: "아바다 케다브라", ulSub: "마나 70 · 무조건 즉사 · HP 30% 흡수", atkSub: "크루시오 · 방어 -2 · 마나 +15" }; }
+}
+class Yeon extends Character {
+  constructor(n) { super(n, 10000, 10000, 10000); this.spirit = 60; this.kind = "구미호 신"; this.key = "yeon"; }
+  gain(n) { const b = this.spirit; this.spirit = Math.min(100, this.spirit + n); log(`✨ 신력 회복! +${this.spirit - b} (현재 신력: ${this.spirit}/100)`, "good"); }
+  attack(o) {
+    log(`⚔️ [발도] ${this.name}이(가) 등의 검을 뽑아 ${o.name}을(를) 베어냅니다!`, "act");
+    o.takeDamage(this.atk); this.gain(20);
+  }
+  canSpecial() { return this.spirit >= 40; }
+  special(o) {
+    log(`🔮 [여우구슬] ${this.name}의 구슬이 천 년의 힘을 터뜨립니다!`, "act");
+    this.spirit -= 40; o.takeDamage(Math.floor(this.atk * 2.5), { big: true });
+    this.heal(1500); log(`💙 구슬의 기운이 몸을 감쌉니다. HP +1500 (현재 HP: ${this.hp})`, "good");
+  }
+  canUltimate() { return this.spirit >= 100; }
+  ultimate(o) {
+    log(`⚡🔥 [천뢰염참 天雷炎斬]!! ${this.name}의 검에 번개가 내리꽂히고 불꽃이 타오릅니다! 🔥⚡`, "act");
+    this.spirit -= 100;
+    log("🌩️ 뇌염을 두른 일격이 모든 것을 베어냅니다! (방어 무시)", "bad");
+    o.takeDamage(Math.floor(this.atk * 10) + o.def, { big: true });
+  }
+  resource() { return { label: "신력 💠", v: this.spirit, max: 100, cls: "mana" }; }
+  names() { return { sp: "여우구슬", spSub: "신력 40 · ×2.5 · HP +1500", ul: "천뢰염참", ulSub: "신력 100 · 방어 무시 ×10 · 번개 + 화염 참격", atkSub: "발도 · 신력 +20" }; }
+}
+class Hero extends Character {
+  constructor(n) { super(n, 200, 80, 60); this.mana = 50; this.kind = "영웅"; this.key = "hero"; }
+  attack(o) {
+    log(`⚔️ [영웅] ${this.name}이(가) 빛나는 성검으로 ${o.name}을(를) 베어냅니다!`, "act");
+    this.mana = Math.min(100, this.mana + 15);
+    log(`✨ 마나 회복! (현재 마나: ${this.mana}/100)`, "good");
+    o.takeDamage(this.atk);
+  }
+  canSpecial() { return this.mana >= 30; }
+  special(o) {
+    this.mana -= 30;
+    log(`🛡️ [영웅의 일격] ${this.name}이(가) 수호의 빛을 두르고 강력하게 돌진합니다!`, "act");
+    o.takeDamage(this.atk * 2, { big: true });
+    this.def += 10;
+    log(`✨ 수호의 보호막 형성! 방어력이 +10 증가합니다. (현재 방어력: ${this.def})`, "good");
+  }
+  canUltimate() { return this.mana >= 60; }
+  ultimate(o) {
+    this.mana -= 60;
+    log(`🌟🌟 [영웅의 강림 - 성검의 심판] ${this.name}의 검에서 거대한 빛의 기둥이 솟구칩니다!`, "act");
+    log("✨ 성검의 빛이 적의 방어를 완전히 꿰뚫습니다! (방어 무시)", "good");
+    o.takeDamage(Math.floor(this.atk * 7) + o.def, { big: true });
+    const h = Math.floor(this.maxHp * 0.4); this.heal(h);
+    log(`💖 영웅의 축복! HP +${h} 회복 (현재 HP: ${this.hp})`, "good");
+  }
+  resource() { return { label: "마나", v: this.mana, max: 100, cls: "mana" }; }
+  names() { return { sp: "영웅의 일격", spSub: "마나 30 · ×2, 방어 +10", ul: "성검의 심판", ulSub: "마나 60 · ×7, 방어 무시, HP 40% 회복", atkSub: "마나 +15" }; }
+}
+
+const MON_ULT = {
+  "orc-captain": { name: "방패 파쇄 돌진", col: "#9ad0ff" },
+  "orc-berserker": { name: "피의 광란", col: "#ff3a3a" },
+  "orc-general": { name: "대장군의 진군", col: "#ffb347" },
+};
+const HARD = { hp: 1.25, bossHp: 1.3, atk: 1.15, def: 1.1 };
+const MON_AI = {
+  slime: { heal: { hp: 0.7, pct: 0.3, cd: 3 } },
+  goblin: { guard: { chance: 0.35, red: 0.5 } },
+  "orc-base": { heal: { hp: 0.6, pct: 0.25, cd: 3 }, guard: { chance: 0.3, red: 0.45 } },
+  "orc-captain": { guard: { chance: 0.45, red: 0.55 } },
+  "orc-berserker": { heal: { hp: 0.6, pct: 0.2, cd: 3 } },
+  "orc-general": { heal: { hp: 0.7, pct: 0.2, cd: 3 }, guard: { chance: 0.3, red: 0.55 } },
+  dragon: { heal: { hp: 0.5, pct: 0.12, cd: 4, max: 3 }, dodge: 0.3 },
+  archmage: { heal: { hp: 0.5, pct: 0.15, cd: 3, max: 2 }, guard: { chance: 0.25, red: 0.5 } },
+  warrior: { guard: { chance: 0.3, red: 0.5 } },
+  wizard: { heal: { hp: 0.5, pct: 0.12, cd: 4, max: 2 }, dodge: 0.2 },
+  healer: { heal: { hp: 0.7, pct: 0.2, cd: 2, max: 4 } },
+  darkwizard: { heal: { hp: 0.5, pct: 0.12, cd: 4, max: 2 }, guard: { chance: 0.15, red: 0.5 } },
+  yeon: { dodge: 0.25, guard: { chance: 0.2, red: 0.5 } },
+  hero: { guard: { chance: 0.3, red: 0.5 }, heal: { hp: 0.5, pct: 0.15, cd: 4, max: 2 } },
+};
+class Monster extends Character {
+  constructor(name, hp, atk, def, expReward, sprite, boss) {
+    super(name, Math.round(hp * (boss ? HARD.bossHp : HARD.hp)), Math.round(atk * HARD.atk), Math.round(def * HARD.def));
+    this.expReward = expReward; this.sprite = sprite; this.boss = !!boss; this.shield = 0; this.guarding = false; this.guardRed = 0; this.cd = 0; this.healCount = 0; this.turns = 0;
+    monsterCount++;
+  }
+  static createRandom(difficulty) {
+    const list = [["슬라임", 40, 20, 3, 30, "slime"], ["고블린", 70, 30, 5, 50, "goblin"], ["오크", 120, 40, 12, 80, "orc-base"], ["드래곤", 200, 55, 25, 200, "dragon"]];
+    const pool = list.slice(0, Math.min(difficulty, list.length));
+    return new Monster(...pool[Math.floor(Math.random() * pool.length)]);
+  }
+  minHit(p) { return Math.floor(p.maxHp * (this.boss ? 0.03 : 0.015)); }
+  attack(o) {
+    if (this.ultNow) {
+      this.ultNow = false; const U = MON_ULT[this.sprite], raw = Math.floor(this.atk * 2.2 * (1 + Math.max(0, this.turns - 6) * 0.1));
+      log(`💥💥 ${this.name}의 궁극기! [${U.name}]!! 💥💥`, "act");
+      o.takeDamage(Math.max(Math.min(raw, o.def + Math.floor(o.maxHp * 0.6)), o.def + this.minHit(o)), { big: true });
+      if (this.sprite === "orc-berserker") { const h = Math.floor(this.maxHp * 0.1); log(`🩸 ${this.name}이(가) 피에 도취해 HP +${h} 회복!`, "bad"); this.heal(h); }
+      return;
+    }
+    const enr = Math.max(0, this.turns - 6), crit = Math.random() < (this.boss ? 0.2 : 0.15);
+    const raw = Math.floor(this.atk * (1 + enr * 0.1) * (crit ? 1.5 : 1));
+    if (enr > 0) log(`🔥 ${this.name}이(가) 격분했다! (공격력 +${enr * 10}%)`, "bad");
+    log(`⚔️ ${this.name}이(가) ${o.name}을(를) 공격!${crit ? " 💢 치명타!" : ""}`, "act");
+    o.takeDamage(Math.max(raw, o.def + this.minHit(o)), { big: crit });
+  }
+  plan() {
+    const due = !!MON_ULT[this.sprite] && this.turns % 4 === 3; this.turns++; this.ultNow = false;
+    if (due) { this.guarding = false; this.cd = Math.max(0, this.cd - 1); this.ultNow = true; return "attack"; }
+    const a = MON_AI[this.sprite] || {}; this.guarding = false; this.cd = Math.max(0, this.cd - 1);
+    if (a.heal && this.cd === 0 && this.hp <= this.maxHp * a.heal.hp && (a.heal.max == null || this.healCount < a.heal.max)) return "heal";
+    if (a.guard && Math.random() < a.guard.chance) return "guard";
+    return "attack";
+  }
+  doHeal() {
+    const h = MON_AI[this.sprite].heal, n = Math.max(8, Math.floor(this.maxHp * h.pct));
+    this.cd = h.cd; this.healCount++;
+    log(`💚 ${this.name}이(가) 상처를 치유합니다! HP +${n}`, "bad"); this.heal(n);
+  }
+  doGuard() {
+    const g = MON_AI[this.sprite].guard; this.guarding = true; this.guardRed = g.red;
+    log(`🛡️ ${this.name}이(가) 방어 태세를 취했다! (다음 피해 ${Math.round(g.red * 100)}% 감소)`, "bad");
+  }
+  preHit(dmg, o) {
+    const a = MON_AI[this.sprite] || {};
+    if (a.dodge && !(o && o.big) && Math.random() < a.dodge) { log(`💨 ${this.name}이(가) 공격을 가볍게 회피했다!`, "bad"); Q.push({ t: "dodge", who: this }); return null; }
+    if (this.guarding) { log(`🛡️ 방어 태세로 피해가 ${Math.round(this.guardRed * 100)}% 줄어듭니다.`, "dmg"); return Math.max(1, Math.floor(dmg * (1 - this.guardRed))); }
+    return dmg;
+  }
+  takeDamage(dmg, o) { const d = this.preHit(dmg, o); if (d == null) return 0; return super.takeDamage(d, o); }
+  extraInfo() { const e = Math.max(0, this.turns - 6); return [MON_ULT[this.sprite] && this.turns % 4 === 3 ? `⚠ 다음 턴 궁극기: ${MON_ULT[this.sprite].name}` : "", this.guarding ? "🛡 방어 태세 · 받는 피해 감소" : "", e > 0 ? `🔥 격분 +${e * 10}%` : ""].filter(Boolean).join(" · "); }
+}
+class UltimateDragon extends Monster {
+  constructor() {
+    super("파멸의 절멸룡 드래곤", 2000, 150, 40, 2000, "dragon", true);
+    this.rageStack = 0; this.hasShielded = false; this.turnCount = 0;
+  }
+  nextIsBreath() { return (this.turnCount + 1) % 3 === 0; }
+  attack(p) {
+    this.turnCount++; this.rageStack += 0.10;
+    if (this.hp <= this.maxHp * 0.5 && !this.hasShielded) {
+      this.shield = Math.round(250 * (this.lvHp || 1)); this.hasShielded = true;
+      log(`🛡️ [드래곤의 용비늘] ${this.name}이(가) 단단한 마력 보호막(250)을 펼쳤습니다!`, "bad");
+      Q.push({ t: "shield", who: this, shield: 250 });
+    }
+    const cur = Math.floor(this.atk * (1 + this.rageStack));
+    if (this.turnCount % 3 === 0) {
+      log(`🌋 ${this.name}의 궁극기! [파멸의 헬파이어 브레스]!!`, "act");
+      const actual = Math.max(1, Math.floor(cur * 1.8) - Math.floor(p.def * 0.5), this.minHit(p));
+      p.hp -= actual;
+      log(`💥 방어막을 뚫고 ${p.name}에게 ${actual}의 궤멸적인 데미지! (남은 HP: ${p.hp})`, "bad");
+      Q.push({ t: "dmg", who: p, amount: actual, hp: p.hp, big: true });
+    } else {
+      log(`⚔️ ${this.name}의 맹렬한 발톱 할퀴기! (광폭화 중첩: +${Math.floor(this.rageStack * 100)}%)`, "act");
+      p.takeDamage(Math.max(cur, p.def + this.minHit(p)));
+    }
+  }
+  takeDamage(dmg, o) {
+    const d = this.preHit(dmg, o); if (d == null) return 0; dmg = d;
+    const actual = Character.calcDamage(dmg, this.def), big = !!(o && o.big);
+    if (this.shield > 0) {
+      if (this.shield >= actual) {
+        this.shield -= actual;
+        log(`🛡️ 드래곤의 보호막이 데미지를 흡수했습니다! (남은 보호막: ${this.shield})`, "dmg");
+        Q.push({ t: "absorb", who: this, amount: actual, shield: this.shield });
+        return 0;
+      }
+      const rest = actual - this.shield;
+      log("💥 드래곤의 보호막이 깨졌습니다!", "dmg");
+      this.shield = 0; this.hp -= rest;
+      log(`${this.name}에게 ${rest}의 데미지! (남은 HP: ${this.hp})`, "dmg");
+      Q.push({ t: "break", who: this });
+      Q.push({ t: "dmg", who: this, amount: rest, hp: this.hp, shield: 0, big });
+      return rest;
+    }
+    this.hp -= actual;
+    log(`${this.name}이(가) ${actual}의 데미지를 받았다! (남은 HP: ${this.hp})`, "dmg");
+    Q.push({ t: "dmg", who: this, amount: actual, hp: this.hp, shield: 0, big });
+    return actual;
+  }
+  extraInfo() {
+    const left = 3 - (this.turnCount % 3);
+    return `광폭화 +${Math.floor(this.rageStack * 100)}% · ${left === 1 ? "🔥 다음 공격은 헬파이어 브레스!" : "브레스까지 " + left + "번째 공격"}`;
+  }
+}
+
+/* ---------- 상태 ---------- */
+const TOTAL = 12;
+const RIVAL = {
+  warrior: { kind: "전사", col: "#ff8a3a", at: "검 베기", sp: "분노 폭발", ul: "파멸의 대지 가르기", sword: true },
+  wizard: { kind: "마법사", col: "#ff5a4a", at: "익스펠리아르무스", sp: "스투페파이", ul: "봄바르다 맥시마" },
+  healer: { kind: "힐러", col: "#7dffb0", at: "빛의 화살", sp: "치유의 빛", ul: "신의 은총" },
+  darkwizard: { kind: "흑마법사", col: "#5dff8a", at: "크루시오", sp: "악마의 불길", ul: "아바다 케다브라" },
+  yeon: { kind: "구미호 신", col: "#6ec8ff", at: "발도", sp: "여우구슬", ul: "천뢰염참", sword: true },
+  hero: { kind: "영웅", col: "#ffd36a", at: "성검 일격", sp: "영웅의 일격", ul: "성검의 심판", sword: true },
+  archmage: { kind: "대마법사", col: "#ffb347", at: "엘더 완드 광선", sp: "불꽃의 채찍", ul: "엑스펠리아르무스" },
+};
+let rivalKey = "darkwizard";
+const rivalName = () => `라이벌 ${RIVAL[rivalKey].kind}`;
+class RivalBoss extends Monster {
+  constructor(key) { super(`라이벌 ${RIVAL[key].kind}`, 2000, 80, 30, 2000, key, true); this.key = key; this.R = RIVAL[key]; this.t = 0; this.curMove = "atk"; }
+  nextMove() { const n = this.t + 1; return n % 5 === 0 ? "ult" : n % 3 === 0 ? "sp" : "atk"; }
+  extraInfo() {
+    const mv = this.nextMove(), e = Math.max(0, this.turns - 6);
+    return [mv === "ult" ? `⚠ 다음 턴 궁극기: ${this.R.ul}` : mv === "sp" ? `다음 턴 특수기: ${this.R.sp}` : "", e > 0 ? `🔥 격분 +${e * 10}%` : ""].filter(Boolean).join(" · ");
+  }
+  attack(o) {
+    const mv = this.curMove, R = this.R, e = Math.max(0, this.turns - 6), crit = mv === "atk" && Math.random() < 0.2;
+    const mult = mv === "ult" ? 2.2 : mv === "sp" ? 1.6 : 1;
+    const raw = Math.floor(this.atk * (1 + e * 0.1) * mult * (crit ? 1.5 : 1));
+    const cap = Math.floor(o.maxHp * (mv === "ult" ? 0.7 : mv === "sp" ? 0.45 : 0.3));
+    if (e > 0) log(`🔥 ${this.name}이(가) 격분했다! (공격력 +${e * 10}%)`, "bad");
+    if (mv === "ult") log(`💥💥 ${this.name}의 궁극기! [${R.ul}]!! 💥💥`, "act");
+    else if (mv === "sp") log(`🔥 ${this.name}의 [${R.sp}]!`, "act");
+    else log(`⚔️ ${this.name}의 [${R.at}]!${crit ? " 💢 치명타!" : ""}`, "act");
+    o.takeDamage(Math.max(Math.min(raw, o.def + cap), o.def + this.minHit(o)), { big: mv !== "atk" || crit });
+    if (this.key === "healer" && mv !== "atk") { const h = Math.floor(this.maxHp * (mv === "ult" ? 0.15 : 0.1)); log(`💚 ${this.name}이(가) 스스로를 치유합니다! HP +${h}`, "bad"); this.heal(h); }
+  }
+}
+const LV_SCALE = { hp: 0.08, atk: 0.05, def: 0.04 };
+function scaleToLevel(m) {
+  const L = Math.max(0, player.level - 1), fh = 1 + L * LV_SCALE.hp;
+  m.lv = player.level; m.lvHp = fh;
+  m.maxHp = Math.round(m.maxHp * fh); m.hp = m.maxHp;
+  m.atk = Math.round(m.atk * (1 + L * LV_SCALE.atk)); m.def = Math.round(m.def * (1 + L * LV_SCALE.def));
+}
+const BOSSES = [["전사 오크 캡틴", 220, 55, 20, 150, "orc-captain"], ["정예 광전사 오크", 280, 65, 22, 220, "orc-berserker"], ["오크 대장군", 450, 90, 28, 1000, "orc-general"]];
+let player, monster, turn, defeated, potions, busy = true, view = { p: { hp: 0, maxHp: 1 }, m: { hp: 0, maxHp: 1, shield: 0 } }, areaIdx = -1;
+const F = { p: { el: $("#f-p") }, m: { el: $("#f-m") } };
+["p", "m"].forEach((s) => { F[s].mover = F[s].el.querySelector(".mover"); F[s].flash = F[s].el.querySelector(".flasher"); });
+const other = (s) => (s === "p" ? "m" : "p");
+const sideOf = (who) => (who === player ? "p" : "m");
+const monsterArt = (k) => (k.startsWith("orc") ? ART.orc(k.split("-")[1]) : ART[k]());
+
+/* ---------- 좌표 / 이동 ---------- */
+function pt(side, fx, fy) {
+  const r = F[side].flash.getBoundingClientRect(), s = stage.getBoundingClientRect();
+  return { x: r.left - s.left + r.width * fx, y: r.top - s.top + r.height * fy };
+}
+const target = (side) => pt(other(side), 0.5, 0.45);
+function reach(side, frac) {
+  const me = F[side].flash.getBoundingClientRect(), tg = F[other(side)].flash.getBoundingClientRect();
+  return side === "p" ? tg.left - me.right + me.width * frac : -(me.left - tg.right) - me.width * frac;
+}
+async function moveTo(side, x, y, ms, ease) {
+  const m = F[side].mover, cur = m.style.transform || "translate(0px,0px)", next = `translate(${x}px,${y}px)`;
+  const a = m.animate([{ transform: cur }, { transform: next }], { duration: RM ? ms * 0.4 : ms, easing: ease || "ease-out", fill: "forwards" });
+  await a.finished.catch(() => {}); m.style.transform = next; a.cancel();
+}
+const drawSword = (on) => F.p.flash.classList.toggle("drawn", on);
+const weaponEl = (side) => F[side].flash.querySelector(".weapon");
+async function weaponTo(side, tf, ms) {
+  const w = weaponEl(side); if (!w) return;
+  const cur = w.style.transform || w.dataset.base || "none";
+  const a = w.animate([{ transform: cur }, { transform: tf }], { duration: RM ? ms * 0.4 : ms, easing: "ease-out", fill: "forwards" });
+  await a.finished.catch(() => {}); w.style.transform = tf; a.cancel();
+}
+const weaponBase = (side, ms) => { const w = weaponEl(side); return w ? weaponTo(side, w.dataset.base || "none", ms) : Promise.resolve(); };
+const SW = {
+  chop: { wind: "rotate(-75deg)", hit: "rotate(62deg)" },
+  stab: { wind: "translate(-12px,2px) rotate(-5deg)", hit: "translate(28px,-4px) rotate(18deg)" },
+  cast: { wind: "rotate(-14deg) translate(-4px,0px)", hit: "rotate(20deg) translate(10px,-4px)" },
+  raise: "rotate(-125deg)",
+};
+const feet = (s) => pt(s, 0.5, 0.97);
+function dust(side) { const p = feet(side); burst(p.x, p.y - 4, { n: 10, color: ["#d8cfb6", "#8d8672"], speed: 2.2, size: 4, life: 420, grav: 0.03, angle: -Math.PI / 2, spread: 2.6 }); }
+function aura(side, color, ms) {
+  const a = document.createElement("div"); a.className = "aura";
+  a.style.background = `radial-gradient(circle, ${color} 0%, transparent 62%)`;
+  F[side].el.appendChild(a);
+  anim(a, [{ opacity: 0, transform: "translate(-50%,-50%) scale(.4)" }, { opacity: 0.85, transform: "translate(-50%,-50%) scale(1)", offset: 0.5 }, { opacity: 0, transform: "translate(-50%,-50%) scale(1.15)" }], { duration: ms, easing: "ease-out" }).then(() => a.remove());
+}
+function charge(p, color, ms) {
+  const t0 = performance.now(), d = RM ? ms * 0.4 : ms;
+  emitters.push({ until: t0 + d, fn: (t) => {
+    const u = Math.min(1, (t - t0) / d); orb(p.x, p.y, 5 + 12 * u, color);
+    const a = rnd(0, 6.28), r = 52 * (1 - u) + 14;
+    emit(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r, { vx: -Math.cos(a) * r * 0.07, vy: -Math.sin(a) * r * 0.07, life: 260, size: 3, color, drag: 1 });
+  } });
+  return wait(ms);
+}
+function sparkles(side, colors, ms) {
+  const until = performance.now() + (RM ? ms * 0.4 : ms);
+  emitters.push({ until, fn: () => {
+    const r = F[side].flash.getBoundingClientRect(), s = stage.getBoundingClientRect();
+    for (let i = 0; i < 2; i++) emit(r.left - s.left + rnd(0.2, 0.8) * r.width, r.top - s.top + rnd(0.3, 1) * r.height, { vx: rnd(-0.3, 0.3), vy: -rnd(1, 2.2), life: 700, size: rnd(2, 4.5), color: colors[(Math.random() * colors.length) | 0], drag: 0.99 });
+  } });
+}
+function groundwave(side) {
+  const a = feet(side), b = feet(other(side));
+  for (let i = 0; i <= 10; i++) setTimeout(() => burst(a.x + (b.x - a.x) * (i / 10), a.y - 2, { n: 6, color: ["#ffb070", "#fff0c8", "#8a7a60"], speed: 3.4, size: 4, life: 420, grav: 0.08, angle: -Math.PI / 2, spread: 2 }), i * 26);
+}
+function showBanner(text, sub, color) {
+  const b = $("#banner"); b.style.color = color || "#fff";
+  b.innerHTML = esc(text) + (sub ? `<small>${esc(sub)}</small>` : "");
+  b.classList.remove("show"); void b.offsetWidth; b.classList.add("show");
+}
+
+/* ---------- 근접 공격 공통 ---------- */
+function afterimage(side, color, n, gap) {
+  if (RM) return;
+  for (let i = 0; i < n; i++) setTimeout(() => {
+    const r = F[side].el.getBoundingClientRect(), b = fxl.getBoundingClientRect(), dir = side === "p" ? 1 : -1;
+    const g = fxEl(`position:absolute;left:${r.x - b.x}px;top:${r.y - b.y}px;width:${r.width}px;height:${r.height}px;pointer-events:none;z-index:2;opacity:0;filter:brightness(1.7) saturate(.4) drop-shadow(0 0 10px ${color})${side === "m" ? ";transform:none" : ""}`);
+    g.className = F[side].flash.classList.contains("drawn") ? "drawn" : "";
+    g.innerHTML = F[side].flash.innerHTML;
+    anim(g, [{ opacity: 0.55, transform: "translateX(0)" }, { opacity: 0, transform: `translateX(${-dir * 26}px)` }], { duration: 340, easing: "ease-out" }).then(() => g.remove());
+  }, i * gap);
+}
+function swingArc(side, color) {
+  if (RM) return;
+  const c = pt(side, 0.76, 0.58), dir = side === "p" ? 1 : -1, R = 86, a1 = (-150 * Math.PI) / 180, a2 = (18 * Math.PI) / 180;
+  const P = (a) => `${(120 + R * Math.cos(a)).toFixed(1)} ${(120 + R * Math.sin(a)).toFixed(1)}`;
+  const d = `M${P(a1)}A${R} ${R} 0 0 1 ${P(a2)}`;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 240 240");
+  svg.style.cssText = `position:absolute;left:${c.x - 120}px;top:${c.y - 120}px;width:240px;height:240px;pointer-events:none;overflow:visible;z-index:26;transform:scaleX(${dir});filter:drop-shadow(0 0 10px ${color}) drop-shadow(0 0 22px ${color})`;
+  svg.innerHTML = `<path class="sa" d="${d}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" fill="none" stroke="${color}" stroke-width="15" stroke-linecap="round" opacity=".85"/><path class="sa" d="${d}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`;
+  fxl.appendChild(svg);
+  svg.querySelectorAll(".sa").forEach((q, i) => q.animate([{ strokeDashoffset: 100 }, { strokeDashoffset: i ? 6 : 0 }], { duration: 150, fill: "forwards", easing: "ease-out" }));
+  anim(svg, [{ opacity: 1 }, { opacity: 1, offset: 0.55 }, { opacity: 0 }], { duration: 330 }).then(() => svg.remove());
+}
+async function melee(side, o) {
+  const dir = side === "p" ? 1 : -1, sw = SW[o.sw || "chop"], col = o.trail || (side === "p" ? SKILL_COL[player.key] : "#ffb0a0") || "#fff";
+  await Promise.all([moveTo(side, -dir * (o.back || 24), 5, 190, "ease-out"), weaponTo(side, sw.wind, 190)]);
+  await wait(75);
+  dust(side); sfx.whoosh();
+  const dx = reach(side, o.overlap == null ? 0.3 : o.overlap);
+  afterimage(side, col, 3, 38);
+  await Promise.all([moveTo(side, dx, o.dy || 0, o.dash || 130, "cubic-bezier(.55,0,1,.6)"), weaponTo(side, sw.hit, o.dash || 130)]);
+  if (o.sw !== "stab") swingArc(side, col);
+  if (o.fx) o.fx();
+  const t = target(side);
+  burst(t.x - dir * 8, t.y, { n: 18, color: [col, "#fff", "#ffe9b0"], speed: 7, size: 3, life: 320, angle: dir > 0 ? -0.4 : Math.PI + 0.4, spread: 1.7 });
+  flash("#fff", 0.2, 110); shake(8, 220);
+  o.apply(); await flush();
+  weaponTo(side, `${sw.hit} rotate(10deg)`, 90);
+  await wait(o.hold || 120);
+  await Promise.all([moveTo(side, 0, 0, 240, "ease-in-out"), weaponBase(side, 240)]);
+}
+
+/* ---------- 플레이어 연출 ---------- */
+const CH = {
+  warrior: {
+    async attack(apply) { await melee("p", { sw: "chop", apply, fx: () => { const t = target("p"); slashFx(t.x, t.y, { color: "#e6eef8" }); sfx.slash(); } }); },
+    async special(apply) {
+      aura("p", "#ff4a2a", 520); sfx.buff(); await wait(420);
+      await melee("p", { sw: "chop", dash: 120, apply, fx: () => { const t = target("p"); slashFx(t.x, t.y, { color: "#ff7a4a", size: 170 }); setTimeout(() => slashFx(t.x, t.y, { color: "#ffd0a0", size: 150, angle: 30, flip: true }), 90); sfx.slash(); shake(7, 260); } });
+    },
+    async ultimate(apply) {
+      aura("p", "#ff3a1a", 900); sfx.roar();
+      await Promise.all([weaponTo("p", SW.raise, 460), moveTo("p", 0, -38, 460, "ease-out")]);
+      flash("#ff6a3a", 0.3, 300);
+      const tip = pt("p", 0.8, 0.04), f = feet("p"), fm = feet("m");
+      await charge(tip, "#ff7a3a", 420);
+      ringFx(tip.x, tip.y, "#ffb070", 120, 460);
+      const dx = reach("p", 0.22);
+      groundFissure(f.x, fm.x, fm.y, "#ff5a1a");
+      await Promise.all([moveTo("p", dx, 6, 170, "cubic-bezier(.5,0,1,.5)"), weaponTo("p", "rotate(82deg)", 170)]);
+      const t = target("p"); ringFx(t.x, fm.y, "#ffb070", 240, 640);
+      slashFx(t.x, t.y, { color: "#fff0c8", size: 260 }); setTimeout(() => slashFx(t.x, t.y, { color: "#ff7a4a", size: 220, angle: 40, flip: true }), 100);
+      burst(t.x, t.y, { n: 90, color: ["#ff7a4a", "#ffd36a", "#fff", "#3a1a10"], speed: 10, size: 5, life: 860, grav: 0.08 });
+      flash("#fff", 0.8, 420); shake(26, 640); sfx.boom();
+      apply(); await flush();
+      const me = pt("p", 0.5, 0.5); ringFx(me.x, me.y, "#7ab8ff", 140, 620); sfx.buff();
+      await wait(280);
+      await Promise.all([moveTo("p", 0, 0, 260, "ease-in-out"), weaponBase("p", 260)]);
+    },
+  },
+  wizard: {
+    async attack(apply) {
+      if (!player.canBolt()) { await melee("p", { sw: "cast", apply, dash: 110, overlap: 0.2, fx: () => sfx.hit() }); return; }
+      await weaponTo("p", SW.cast.wind, 160); sfx.magic();
+      const from = pt("p", 0.84, 0.33), to = target("p");
+      await Promise.all([travel(from, to, 260, "#ff4a4a", 9), weaponTo("p", SW.cast.hit, 220)]);
+      burst(to.x, to.y, { n: 20, color: ["#ff4a4a", "#ffb0a0", "#fff"], speed: 4, life: 420 });
+      apply(); await flush(); await weaponBase("p", 200);
+    },
+    async special(apply) {
+      await weaponTo("p", SW.cast.wind, 200);
+      const from = pt("p", 0.84, 0.33); sfx.magic();
+      await charge(from, "#ff2a2a", 480); sfx.fire();
+      const to = target("p");
+      const sp = stream(from, to, 460, ["#ff2a2a", "#ff8a6a", "#fff"]);
+      await weaponTo("p", SW.cast.hit, 240); await wait(240);
+      burst(to.x, to.y, { n: 60, color: ["#ff2a2a", "#ff9a7a", "#fff"], speed: 8, size: 5, life: 640 });
+      ringFx(to.x, to.y, "#ff4a3a", 200, 580); flash("#ff4a3a", 0.45, 380); shake(11, 380); sfx.boom();
+      apply(); await flush(); await sp; await weaponBase("p", 220);
+    },
+    async ultimate(apply) {
+      aura("p", "#ff9a3a", 1000); sfx.magic();
+      await weaponTo("p", "rotate(-26deg)", 260);
+      const from = pt("p", 0.84, 0.3), to = target("p"), f = feet("m");
+      await charge(from, "#ff9a3a", 560); sfx.fire();
+      const sp = stream(from, to, 420, ["#ff9a3a", "#ffd36a", "#fff"]);
+      await weaponTo("p", SW.cast.hit, 200); await wait(300);
+      ringFx(f.x, f.y, "#ff9a3a", 170, 520); shake(6, 520); flash("#ff8a2a", 0.25, 460);
+      await wait(380);
+      explosionFx(to.x, to.y); flash("#fff", 0.95, 420); shake(26, 800); sfx.boom();
+      apply(); await flush(); await sp; await wait(250); await weaponBase("p", 260);
+    },
+  },
+  healer: {
+    async attack(apply) {
+      await weaponTo("p", SW.cast.wind, 160); sfx.magic();
+      const from = pt("p", 0.76, 0.18), to = target("p");
+      await Promise.all([travel(from, to, 280, "#fff3a0", 8), weaponTo("p", SW.cast.hit, 220)]);
+      burst(to.x, to.y, { n: 18, color: ["#fff3a0", "#fff"], speed: 4, life: 420 });
+      apply(); await flush(); await weaponBase("p", 200);
+    },
+    async special(apply) {
+      await weaponTo("p", "rotate(-12deg)", 200);
+      const me = pt("p", 0.5, 0.55); ringFx(me.x, me.y, "#7dffb0", 150, 640); sparkles("p", ["#7dffb0", "#d8ffe8", "#fff"], 800); sfx.heal();
+      await wait(380); apply(); await flush(); await wait(250); await weaponBase("p", 200);
+    },
+    async ultimate(apply) {
+      await weaponTo("p", "rotate(-14deg)", 240); aura("p", "#ffe27a", 1300); sfx.magic();
+      flash("#2a2410", 0.45, 1500);
+      const me = pt("p", 0.5, 0.5);
+      angelWings("#ffe27a"); runeCircle("#ffe27a", "p");
+      await wait(560);
+      pillarFx(me.x, "#ffe27a", 1000, 130); sfx.heal(); setTimeout(() => sfx.level(), 150);
+      for (let k = 0; k < 3; k++) setTimeout(() => ringFx(me.x, me.y, k % 2 ? "#fff" : "#ffe27a", 180 + k * 60, 800), k * 120);
+      burst(me.x, me.y, { n: 70, color: ["#fff", "#ffe27a", "#7dffb0"], speed: 5, life: 1100, grav: -0.04 });
+      flash("#fff8c0", 0.7, 520);
+      await wait(320); apply(); await flush();
+      sparkles("p", ["#ffe27a", "#fff", "#7dffb0"], 1100);
+      await wait(700); await weaponBase("p", 200);
+    },
+  },
+  archmage: {
+    async attack(apply) {
+      if (!player.canBolt()) { await melee("p", { sw: "cast", apply, dash: 110, overlap: 0.2, fx: () => sfx.hit() }); return; }
+      await weaponTo("p", SW.cast.wind, 160); sfx.magic();
+      const from = pt("p", 0.84, 0.33), to = target("p");
+      await Promise.all([travel(from, to, 270, "#cfe8ff", 10), weaponTo("p", SW.cast.hit, 220)]);
+      burst(to.x, to.y, { n: 22, color: ["#cfe8ff", "#fff", "#ffe27a"], speed: 4, life: 440 });
+      apply(); await flush(); await weaponBase("p", 200);
+    },
+    async special(apply) {
+      await weaponTo("p", SW.cast.wind, 200); sfx.magic();
+      const from = pt("p", 0.84, 0.33); await charge(from, "#ff9a3a", 460); sfx.fire();
+      const to = target("p"), w = whipFx(from, to);
+      await weaponTo("p", SW.cast.hit, 200); await wait(240);
+      burst(to.x, to.y, { n: 70, color: ["#ff4a0a", "#ff9a2a", "#ffe27a", "#fff"], speed: 8, size: 5, life: 700, grav: -0.02 });
+      ringFx(to.x, to.y, "#ff9a3a", 210, 600); flash("#ff8a2a", 0.4, 360); shake(11, 380); sfx.boom();
+      apply(); await flush(); aura("p", "#ff7a1a", 800); await w; await weaponBase("p", 220);
+    },
+    async ultimate(apply) {
+      aura("p", "#ff3a3a", 1300); sfx.roar();
+      await weaponTo("p", "rotate(-26deg)", 260);
+      flash("#1a0202", 0.65, 1500);
+      const from = pt("p", 0.84, 0.3), to = target("p"), fm = feet("m");
+      runeCircle("#ff3a3a", "p");
+      await charge(from, "#ff3a3a", 620); sfx.magic();
+      ringFx(from.x, from.y, "#ff8a8a", 160, 520); ringFx(from.x, from.y, "#ff3a3a", 110, 420);
+      await weaponTo("p", SW.cast.hit, 140); sfx.fire();
+      const bm = beamFx(from, to, "#ff3a3a", 820), st = stream(from, to, 500, ["#ff3a3a", "#ff9a9a", "#fff"]);
+      await wait(260);
+      burst(to.x, to.y, { n: 130, color: ["#ff3a3a", "#ff9a9a", "#fff", "#7a0f1c"], speed: 12, size: 6, life: 900 });
+      for (let k = 0; k < 4; k++) setTimeout(() => ringFx(to.x, fm.y - 10, k % 2 ? "#fff" : "#ff3a3a", 230 + k * 70, 700), k * 90);
+      lightRays(to, "#ff3a3a"); flash("#fff", 0.9, 480); shake(30, 760); sfx.boom();
+      apply(); await flush();
+      moveTo("m", 70, -24, 220, "ease-out"); weaponFlyFx(to.x, to.y - 10);
+      await wait(420); moveTo("m", 0, 0, 420, "ease-in-out");
+      sparkles("p", ["#ff9a9a", "#fff"], 800);
+      await bm; await st; await wait(200); await weaponBase("p", 260);
+    },
+  },
+  darkwizard: {
+    async attack(apply) {
+      await weaponTo("p", SW.cast.wind, 160); sfx.magic();
+      const from = pt("p", 0.86, 0.36), to = target("p");
+      await Promise.all([travel(from, to, 280, "#ff3b4a", 9), weaponTo("p", SW.cast.hit, 220)]);
+      burst(to.x, to.y, { n: 20, color: ["#ff3b4a", "#7a0f1c", "#fff"], speed: 4, life: 440 });
+      apply(); await flush(); await weaponBase("p", 200);
+    },
+    async special(apply) {
+      await weaponTo("p", SW.cast.wind, 200);
+      const from = pt("p", 0.86, 0.36); sfx.magic();
+      await charge(from, "#ff5a1f", 520);
+      const to = target("p"); sfx.fire();
+      const sp = stream(from, to, 520, ["#ff3b1f", "#ffb347", "#7a0f1c", "#fff3b8"]);
+      await weaponTo("p", SW.cast.hit, 240); await wait(300);
+      burst(to.x, to.y, { n: 60, color: ["#ff3b1f", "#ffb347", "#3a0a10"], speed: 7, size: 5, life: 700, grav: 0.04 });
+      ringFx(to.x, to.y, "#ff5a1f", 200, 600); flash("#ff5a2a", 0.4, 380); shake(11, 380); sfx.boom();
+      apply(); await flush(); await sp; await weaponBase("p", 220);
+    },
+    async ultimate(apply) {
+      flash("#020a05", 0.75, 1500); sfx.magic();
+      await weaponTo("p", "rotate(-22deg)", 260);
+      const from = pt("p", 0.86, 0.36), to = target("p");
+      aura("p", "#5dff8a", 1000); runeCircle("#5dff8a", "m");
+      await charge(from, "#5dff8a", 640);
+      ringFx(from.x, from.y, "#5dff8a", 140, 520);
+      await weaponTo("p", SW.cast.hit, 140); sfx.fire();
+      const bm = beamFx(from, to, "#5dff8a", 720);
+      await wait(200);
+      ringFx(to.x, to.y, "#b6ffcb", 260, 700);
+      burst(to.x, to.y, { n: 100, color: ["#5dff8a", "#b6ffcb", "#fff", "#0a3a1a"], speed: 10, size: 5, life: 900 });
+      flash("#b6ffcb", 0.75, 420); shake(16, 520); sfx.boom();
+      apply(); await flush();
+      const home = pt("p", 0.5, 0.5);
+      for (let k = 0; k < 7; k++) setTimeout(() => travel({ x: to.x + rnd(-30, 30), y: to.y + rnd(-40, 20) }, home, 520, "#b6ffcb", 7), k * 70);
+      sparkles("p", ["#5dff8a", "#fff"], 900);
+      await bm; await wait(500); await weaponBase("p", 240);
+    },
+  },
+  yeon: {
+    async attack(apply) {
+      await weaponTo("p", "rotate(-70deg)", 150);
+      const hb = pt("p", 0.75, 0.19); drawSword(true); sfx.whoosh();
+      ringFx(hb.x, hb.y, "#e8f6ff", 70, 380); burst(hb.x, hb.y, { n: 10, color: ["#fff", "#a8e4ff"], speed: 3, life: 300 });
+      await melee("p", { sw: "chop", apply, fx: () => { const t = target("p"); slashFx(t.x, t.y, { color: "#a8e4ff", size: 160 }); setTimeout(() => slashFx(t.x, t.y, { color: "#fff", size: 130, angle: 30, flip: true }), 70); sfx.slash(); } });
+      await wait(90); drawSword(false); ringFx(hb.x, hb.y, "#a8e4ff", 50, 300);
+    },
+    async special(apply) {
+      await weaponTo("p", SW.cast.wind, 200);
+      const from = pt("p", 0.88, 0.45); sfx.magic();
+      await charge(from, "#8fd8ff", 520); sfx.fire();
+      const to = target("p");
+      await Promise.all([travel(from, to, 340, "#a8e4ff", 17), weaponTo("p", SW.cast.hit, 240)]);
+      burst(to.x, to.y, { n: 55, color: ["#6ec8ff", "#fff", "#ff8a3a"], speed: 7, size: 5, life: 680 });
+      ringFx(to.x, to.y, "#6ec8ff", 200, 600); flash("#a8e4ff", 0.45, 380); shake(10, 360); sfx.boom();
+      apply(); await flush(); sparkles("p", ["#a8e4ff", "#fff"], 800); sfx.heal(); await weaponBase("p", 220);
+    },
+    async ultimate(apply) {
+      drawSword(true); aura("p", "#a8e4ff", 1200); sfx.roar();
+      await weaponTo("p", "rotate(-32deg)", 280);
+      flash("#04061a", 0.7, 1600);
+      const tip = bladePt(1);
+      await charge(tip, "#a8e4ff", 460); sfx.magic();
+      boltFx(tip.x, tip.y, { thin: true }); await wait(240);
+      boltFx(tip.x, tip.y); sfx.boom(); flash("#fff", 0.9, 300); shake(14, 500);
+      for (let k = 0; k <= 6; k++) { const q = bladePt(k / 6); burst(q.x, q.y, { n: 7, color: ["#fff", "#a8e4ff", "#6ec8ff"], speed: 5, size: 3, life: 380 }); }
+      ringFx(tip.x, tip.y, "#a8e4ff", 150, 520);
+      await wait(330);
+      const wEl = weaponEl("p"); wEl.style.filter = "drop-shadow(0 0 7px #ff7a1a) drop-shadow(0 0 16px #ff4a0a)";
+      sfx.fire(); ringFx(tip.x, tip.y, "#ff7a1a", 120, 520);
+      const flame = setInterval(() => { for (const u of [0.25, 0.5, 0.75, 1]) { const q = bladePt(u); burst(q.x, q.y, { n: 3, color: ["#ff4a0a", "#ff9a2a", "#ffe27a"], speed: 2, size: 5, life: 480, grav: -0.05 }); } }, 40);
+      await wait(560);
+      const dx = reach("p", 0.25);
+      await Promise.all([moveTo("p", dx, 6, 180, "cubic-bezier(.5,0,1,.5)"), weaponTo("p", "rotate(86deg)", 180)]);
+      clearInterval(flame);
+      const t = target("p"), fm = feet("m");
+      slashFx(t.x, t.y, { color: "#fff0c8", size: 270 }); setTimeout(() => slashFx(t.x, t.y, { color: "#ff7a2a", size: 230, angle: 40, flip: true }), 90);
+      burst(t.x, t.y, { n: 110, color: ["#ff4a0a", "#ff9a2a", "#ffe27a", "#fff"], speed: 10, size: 6, life: 860, grav: -0.02 });
+      burst(t.x, fm.y, { n: 50, color: ["#ff4a0a", "#ff9a2a", "#3a1a10"], speed: 4, size: 6, life: 1000, grav: -0.08 });
+      for (let k = 0; k < 3; k++) setTimeout(() => ringFx(t.x, fm.y - 10, k % 2 ? "#ffe27a" : "#ff7a2a", 230 + k * 70, 680), k * 90);
+      flash("#ff8a2a", 0.7, 420); shake(24, 620); sfx.boom();
+      apply(); await flush();
+      wEl.style.filter = ""; await wait(380);
+      await Promise.all([moveTo("p", 0, 0, 280, "ease-in-out"), weaponBase("p", 280)]);
+      drawSword(false);
+    },
+  },
+  hero: {
+    async attack(apply) { await melee("p", { sw: "chop", apply, fx: () => { const t = target("p"); slashFx(t.x, t.y, { color: "#ffe27a", size: 150 }); sfx.slash(); } }); },
+    async special(apply) {
+      aura("p", "#ffd24a", 460); sfx.buff(); await wait(360);
+      await melee("p", { sw: "chop", dash: 110, apply, fx: () => { const t = target("p"); slashFx(t.x, t.y, { color: "#ffe27a", size: 190 }); setTimeout(() => slashFx(t.x, t.y, { color: "#fff", size: 170, angle: 38, flip: true }), 90); sfx.slash(); shake(8, 280); } });
+      const me = pt("p", 0.5, 0.5); ringFx(me.x, me.y, "#7ab8ff", 140, 600); sfx.buff();
+    },
+    async ultimate(apply) {
+      aura("p", "#ffd24a", 1200); sfx.roar(); runeCircle("#ffe27a");
+      await Promise.all([weaponTo("p", SW.raise, 480), moveTo("p", 0, -22, 480, "ease-out")]);
+      flash("#1a1400", 0.5, 1300);
+      const me = pt("p", 0.5, 0.5), tip = pt("p", 0.78, 0.02), t = target("p");
+      pillarFx(me.x, "#ffe27a", 800, 110); sfx.magic();
+      await charge(tip, "#fff3b0", 520);
+      ringFx(tip.x, tip.y, "#ffe27a", 120, 480);
+      await weaponTo("p", "rotate(40deg)", 150);
+      const hb = holyBlade(t.x, t.y); sfx.fire();
+      await wait(430);
+      pillarFx(t.x, "#ffe27a", 900, 170);
+      slashFx(t.x, t.y, { color: "#fff", size: 260 }); setTimeout(() => slashFx(t.x, t.y, { color: "#ffe27a", size: 220, angle: 40, flip: true }), 90);
+      burst(t.x, t.y, { n: 100, color: ["#ffe27a", "#fff", "#7ab8ff"], speed: 9, size: 5, life: 800, grav: 0.03 });
+      for (let k = 0; k < 3; k++) setTimeout(() => ringFx(t.x, feet("m").y - 10, k % 2 ? "#fff" : "#ffe27a", 240 + k * 70, 700), k * 90);
+      flash("#fff", 0.9, 520); shake(22, 600); sfx.boom();
+      apply(); await flush(); await hb;
+      sparkles("p", ["#ffe27a", "#7dffb0", "#fff"], 1000); sfx.heal();
+      await wait(260);
+      await Promise.all([moveTo("p", 0, 0, 260, "ease-in-out"), weaponBase("p", 260)]);
+    },
+  },
+};
+async function potionFx(apply) {
+  const me = pt("p", 0.5, 0.5); ringFx(me.x, me.y, "#7dffb0", 130, 560); sparkles("p", ["#7dffb0", "#fff"], 700); sfx.heal();
+  await wait(300); apply(); await flush(); await wait(250);
+}
+
+/* ---------- 몬스터 연출 ---------- */
+async function monsterHealFx() {
+  monster.doHeal(); const c = pt("m", 0.5, 0.5);
+  sfx.heal(); sparkles("m", ["#7dffb0", "#fff"], 900); ringFx(c.x, c.y, "#7dffb0", 190, 700);
+  burst(c.x, c.y, { n: 26, color: ["#7dffb0", "#d9ffe8", "#fff"], speed: 3, life: 800, grav: -0.03 });
+  await flush(); await wait(500);
+}
+async function monsterGuardFx() {
+  monster.doGuard(); const c = pt("m", 0.5, 0.5);
+  sfx.shield(); aura("m", "#7aa8ff", 800); ringFx(c.x, c.y, "#aac8ff", 170, 600); flash("#aac8ff", 0.18, 300);
+  floatNum(c.x, c.y - 30, "🛡 방어 태세", "absorb");
+  await flush(); updatePlates(); await wait(520);
+}
+async function rivalTurn(m, apply) {
+  const mv = m.nextMove(), R = m.R, col = R.col, sword = !!R.sword; m.curMove = mv; m.t++;
+  const pl = () => pt("p", 0.5, 0.5);
+  if (mv === "ult") { const a0 = apply; apply = () => { ultImpact(col); a0(); }; await cutIn(R.ul, `${m.name} · 궁극기`, col); }
+  const slash = (size, extra) => () => { const t = target("m"); slashFx(t.x, t.y, { color: col, size, flip: true, angle: 20 }); if (extra) slashFx(t.x, t.y, { color: "#fff", size: size - 40, flip: true, angle: -30 }); sfx.slash(); if (extra) shake(10, 300); };
+  if (mv === "atk") {
+    if (sword) await melee("m", { sw: "chop", trail: col, dash: 150, back: 20, overlap: 0.22, apply, fx: slash(170) });
+    else {
+      await weaponTo("m", SW.cast.wind, 160); sfx.magic();
+      const from = pt("m", 0.16, 0.33), to = pl();
+      await Promise.all([travel(from, to, 320, col, 10), weaponTo("m", SW.cast.hit, 220)]);
+      burst(to.x, to.y, { n: 20, color: [col, "#fff"], speed: 4, life: 420 });
+      apply(); await flush(); await weaponBase("m", 200);
+    }
+    return;
+  }
+  if (mv === "sp") {
+    if (sword) { aura("m", col, 600); await melee("m", { sw: "chop", trail: col, dash: 150, back: 24, overlap: 0.22, apply, fx: slash(230, true) }); }
+    else {
+      const from = pt("m", 0.16, 0.33); await weaponTo("m", SW.cast.wind, 200); sfx.magic();
+      await charge(from, col, 480); const to = pl(); sfx.fire();
+      const sp = stream(from, to, 460, [col, "#fff"]);
+      await weaponTo("m", SW.cast.hit, 240); await wait(260);
+      burst(to.x, to.y, { n: 60, color: [col, "#fff"], speed: 8, size: 5, life: 640 });
+      ringFx(to.x, to.y, col, 200, 580); flash(col, 0.4, 380); shake(11, 380); sfx.boom();
+      apply(); await flush(); await sp; await weaponBase("m", 220);
+    }
+    return;
+  }
+  aura("m", col, 900); sfx.roar(); const to = pl(), from = pt("m", 0.16, 0.33);
+  if (m.key === "hero") {
+    const hb = holyBlade(to.x, to.y); await wait(430);
+    pillarFx(to.x, col, 800, 150); burst(to.x, to.y, { n: 90, color: [col, "#fff", "#7ab8ff"], speed: 9, size: 5, life: 800 });
+    flash("#fff", 0.85, 480); shake(20, 500); sfx.boom(); apply(); await flush(); await hb;
+  } else if (m.key === "yeon") {
+    boltFx(to.x, to.y, { thin: true }); await wait(320); boltFx(to.x, to.y);
+    burst(to.x, to.y, { n: 100, color: ["#fff", "#a8e4ff", "#ffe66a"], speed: 10, size: 5, life: 800 });
+    flash("#fff", 0.9, 360); shake(22, 600); sfx.boom(); apply(); await flush();
+  } else if (m.key === "archmage") {
+    flash("#1a0202", 0.55, 1000); await charge(from, "#ff3a3a", 520); sfx.fire();
+    const bm = beamFx(from, to, "#ff3a3a", 760); await wait(280);
+    burst(to.x, to.y, { n: 110, color: ["#ff3a3a", "#ff9a9a", "#fff"], speed: 11, size: 5, life: 820 });
+    ringFx(to.x, to.y, "#ff3a3a", 250, 660); flash("#fff", 0.85, 440); shake(24, 640); sfx.boom(); apply(); await flush(); await bm;
+  } else if (m.key === "wizard") {
+    await wait(500); explosionFx(to.x, to.y); flash("#fff", 0.9, 400); shake(24, 700); sfx.boom(); apply(); await flush();
+  } else if (m.key === "darkwizard") {
+    flash("#04120a", 0.6, 900); await charge(from, "#5dff8a", 520); sfx.fire();
+    const sp = stream(from, to, 420, ["#5dff8a", "#b6ffcb", "#fff"]); await wait(320);
+    burst(to.x, to.y, { n: 80, color: ["#5dff8a", "#b6ffcb", "#fff"], speed: 9, size: 5, life: 760 });
+    ringFx(to.x, to.y, "#5dff8a", 240, 640); flash("#7dff9a", 0.7, 420); shake(14, 420); apply(); await flush(); await sp;
+  } else if (m.key === "healer") {
+    sparkles("m", ["#7dffb0", "#fff"], 1000); pillarFx(to.x, col, 800, 120); await wait(420);
+    burst(to.x, to.y, { n: 70, color: [col, "#fff"], speed: 8, size: 5, life: 700 }); flash("#e8fff0", 0.6, 400); shake(10, 300); apply(); await flush();
+  } else {
+    await moveTo("m", 14, -30, 260, "ease-out"); const dx = reach("m", 0.2);
+    await moveTo("m", dx, 8, 170, "cubic-bezier(.5,0,1,.5)");
+    groundWave(col, 1); burst(to.x, to.y, { n: 80, color: [col, "#ffd36a", "#fff"], speed: 9, size: 5, life: 700 });
+    flash(col, 0.6, 420); shake(24, 700); sfx.boom(); apply(); await flush(); await wait(120);
+    await moveTo("m", 0, 0, 300, "ease-in-out");
+  }
+  await weaponBase("m", 200);
+}
+async function monsterTurn() {
+  const m = monster, apply = () => m.attack(player), plan = m.plan();
+  if (plan === "heal") { await monsterHealFx(); return; }
+  if (plan === "guard") { await monsterGuardFx(); return; }
+  if (m instanceof RivalBoss) { await rivalTurn(m, apply); return; }
+  if (m.ultNow) { await bossUlt(m, apply); return; }
+  if (m.sprite === "slime") {
+    const dx = reach("m", 0.2);
+    await moveTo("m", 14, 8, 170, "ease-out");
+    await moveTo("m", dx * 0.55, -92, 230, "ease-out");
+    await moveTo("m", dx, 0, 150, "cubic-bezier(.5,0,1,.5)");
+    dust("m"); const t = target("m"); burst(t.x, t.y, { n: 12, color: ["#5fd36b", "#d9ffe0"], speed: 4, life: 420 });
+    apply(); await flush(); await wait(70);
+    await moveTo("m", 0, 0, 280, "ease-in-out");
+  } else if (m.sprite === "goblin") {
+    await melee("m", { sw: "stab", dash: 100, back: 10, overlap: 0.3, apply, fx: () => { const t = target("m"); slashFx(t.x, t.y, { color: "#e4ffcf", size: 90, angle: 8 }); sfx.slash(); } });
+  } else if (m.sprite === "dragon") {
+    if (m.nextIsBreath()) await dragonBreath(apply); else await dragonClaw(apply);
+  } else {
+    const boss = m.boss;
+    await melee("m", { sw: "chop", dash: 150, back: 20, overlap: 0.22, apply, fx: () => { const t = target("m"); slashFx(t.x, t.y, { color: boss ? "#ff8a70" : "#ffd9c0", size: boss ? 190 : 150, flip: true, angle: 20 }); sfx.slash(); if (boss) shake(7, 260); } });
+  }
+}
+async function dragonClaw(apply) {
+  await Promise.all([moveTo("m", 12, -26, 240, "ease-out"), anim(F.m.flash, [{ transform: "none" }, { transform: "scale(1.05)" }], { duration: 240, fill: "forwards" })]);
+  F.m.flash.getAnimations().forEach((a) => a.cancel());
+  dust("m"); sfx.roar();
+  const dx = reach("m", 0.16);
+  await moveTo("m", dx, 6, 160, "cubic-bezier(.5,0,1,.5)");
+  const t = target("m"); clawFx(t.x, t.y, "#ff6a4a"); shake(8, 280);
+  apply(); await flush(); await wait(120);
+  await moveTo("m", 0, 0, 300, "ease-in-out");
+}
+async function dragonBreath(apply) {
+  const jaw = F.m.flash.querySelector(".jaw"), mg = F.m.flash.querySelector(".mglow");
+  sfx.roar(); shake(4, 600);
+  await Promise.all([moveTo("m", 16, -8, 300, "ease-out"), anim(jaw, [{ transform: "rotate(0deg)" }, { transform: "rotate(22deg)" }], { duration: 300, fill: "forwards" })]);
+  if (mg) { mg.style.opacity = 1; }
+  const from = pt("m", 0.11, 0.38), to = pt("p", 0.5, 0.5);
+  sfx.fire(); flash("#ff6a2a", 0.22, 700);
+  const sp = stream(from, to, 760, ["#ff5a1f", "#ffb347", "#fff3b8", "#ff3b1f"]);
+  await wait(400); shake(9, 400); apply(); await flush();
+  await sp;
+  if (mg) mg.style.opacity = 0;
+  jaw.getAnimations().forEach((a) => a.cancel());
+  await moveTo("m", 0, 0, 300, "ease-in-out");
+}
+
+/* ---------- 피격 / 이벤트 재생 ---------- */
+function hitReact(side, e) {
+  const fl = F[side].flash, c = pt(side, 0.5, 0.4), dir = side === "p" ? -1 : 1;
+  (e.big ? sfx.bighit : sfx.hit)();
+  burst(c.x, c.y, { n: e.big ? 34 : 16, color: side === "m" ? ["#fff", "#ffd36a", "#ff8a4a"] : ["#fff", "#ff8a7a", "#ffd0c0"], speed: e.big ? 7 : 4.5, size: 3.2, life: 480, grav: 0.16 });
+  anim(fl, [{ transform: "none", filter: "none" }, { transform: `translateX(${dir * 14}px)`, filter: "brightness(2.6) saturate(.1)", offset: 0.2 }, { transform: `translateX(${-dir * 5}px)`, filter: "brightness(1.4)" }, { transform: "none", filter: "none" }], { duration: 300 });
+  const ratio = e.amount / (view[side].maxHp || 100);
+  shake(Math.min(11, 2 + ratio * 40 + (e.big ? 3 : 0)), 280);
+}
+function bubbleOn() {
+  if (F.m.el.querySelector(".bubble")) return;
+  const b = document.createElement("div"); b.className = "bubble"; F.m.el.appendChild(b);
+  anim(b, [{ opacity: 0, transform: "translate(-50%,-50%) scale(.3)" }, { opacity: 1, transform: "translate(-50%,-50%) scale(1)" }], { duration: 420, easing: "ease-out" });
+}
+function bubbleOff() {
+  const b = F.m.el.querySelector(".bubble"); if (!b) return;
+  const c = pt("m", 0.5, 0.5); burst(c.x, c.y, { n: 40, color: ["#bcd0ff", "#fff"], speed: 6, life: 600, size: 4 });
+  b.remove();
+}
+function addLog(text, cls) {
+  const p = document.createElement("p"); if (cls) p.className = cls; p.textContent = text;
+  const lg = $("#log"); lg.appendChild(p); lg.scrollTop = lg.scrollHeight;
+  if (cls !== "dmg") $("#caption").textContent = text;
+}
+async function flush(fast) {
+  while (Q.length) {
+    const e = Q.shift();
+    if (e.t === "log") { addLog(e.text, e.cls); if (!fast && e.cls === "act") await wait(50); }
+    else if (e.t === "dmg") {
+      const s = sideOf(e.who); view[s].hp = e.hp;
+      if (s === "m" && e.shield != null) { view.m.shield = e.shield; }
+      updatePlates();
+      const c = pt(s, 0.5, 0.35); floatNum(c.x, c.y, e.amount, e.big ? "big" : "dmg");
+      hitReact(s, e);
+      if (!fast) await wait(e.big ? 240 : 140);
+    } else if (e.t === "shield") {
+      view.m.shield = e.shield; updatePlates(); bubbleOn(); sfx.shield(); flash("#aac8ff", 0.3, 320);
+      if (!fast) await wait(450);
+    } else if (e.t === "absorb") {
+      view.m.shield = e.shield; updatePlates(); sfx.shield();
+      const c = pt("m", 0.5, 0.35); floatNum(c.x, c.y, "🛡 " + e.amount, "absorb");
+      const b = F.m.el.querySelector(".bubble"); if (b) anim(b, [{ filter: "brightness(2.2)" }, { filter: "none" }], { duration: 260 });
+      if (!fast) await wait(160);
+    } else if (e.t === "break") { view.m.shield = 0; bubbleOff(); sfx.boom(); }
+    else if (e.t === "heal") {
+      const s = sideOf(e.who); view[s].hp = e.hp; updatePlates();
+      if (e.amount > 0) { const c = pt(s, 0.5, 0.3); floatNum(c.x, c.y, "+" + e.amount, "heal"); }
+    } else if (e.t === "dodge") {
+      const c = pt("m", 0.5, 0.4); floatNum(c.x, c.y, "💨 회피!", "absorb"); sfx.whoosh();
+      afterimage("m", "#bfe8ff", 3, 50);
+      anim(F.m.mover, [{ transform: "none" }, { transform: "translate(38px,-14px)" }, { transform: "none" }], { duration: 400, easing: "ease-out" });
+      if (!fast) await wait(320);
+    } else if (e.t === "level") await levelFx();
+  }
+  updatePlates();
+}
+async function levelFx() {
+  const c = pt("p", 0.5, 0.5);
+  view.p.hp = player.hp; view.p.maxHp = player.maxHp; updatePlates();
+  ringFx(c.x, c.y, "#ffe27a", 220, 700); burst(c.x, c.y, { n: 40, color: ["#ffe27a", "#fff", "#f0a43a"], speed: 5, life: 800, grav: -0.02 });
+  floatNum(c.x, c.y - 30, "LEVEL UP", "lvl"); sparkles("p", ["#ffe27a", "#fff"], 900); sfx.level();
+  await wait(700);
+}
+
+/* ---------- 플레이트 / HUD ---------- */
+const PL = { p: {}, m: {} };
+const pct = (v, m) => Math.max(0, Math.min(100, (v / m) * 100)) + "%";
+function buildPlateP() {
+  const el = $("#plate-p");
+  el.innerHTML = `<div class="nm"><b></b><span></span></div><div class="bar"><i class="ghost"></i><i class="hp"></i><span class="num"></span></div><div class="bar thin"><i class="rs"></i><span class="num"></span></div><div class="bar xs" title="경험치"><i class="xp"></i></div><div class="stat"></div>`;
+  const q = (s) => el.querySelector(s);
+  PL.p = { el, name: q(".nm b"), lv: q(".nm span"), bar: q(".bar"), ghost: q(".ghost"), hp: q(".hp"), hpn: q(".bar .num"), rs: q(".rs"), rsn: q(".bar.thin .num"), xp: q(".xp"), stat: q(".stat") };
+}
+function buildPlateM() {
+  const el = $("#plate-m");
+  el.className = "plate m" + (monster.boss ? " boss" : "");
+  el.innerHTML = `<div class="nm"><b></b><span></span></div><div class="bar"><i class="ghost"></i><i class="hp"></i><span class="num"></span></div><div class="bar thin" hidden><i class="sh"></i><span class="num"></span></div><div class="warn"></div>`;
+  const q = (s) => el.querySelector(s);
+  PL.m = { el, name: q(".nm b"), lv: q(".nm span"), bar: q(".bar"), ghost: q(".ghost"), hp: q(".hp"), hpn: q(".bar .num"), shb: q(".bar.thin"), sh: q(".sh"), shn: q(".bar.thin .num"), warn: q(".warn") };
+}
+function updatePlates() {
+  if (!player || !PL.p.name) return;
+  const a = PL.p, vp = view.p;
+  a.name.textContent = player.name; a.lv.textContent = `Lv.${player.level} ${player.kind}`;
+  a.hp.style.width = a.ghost.style.width = pct(vp.hp, vp.maxHp); a.hpn.textContent = `HP ${vp.hp} / ${vp.maxHp}`;
+  a.bar.classList.toggle("low", vp.hp / vp.maxHp < 0.3);
+  const r = player.resource(); a.rs.className = "rs " + r.cls; a.rs.style.width = pct(Math.min(r.v, r.max), r.max); a.rsn.textContent = `${r.label} ${r.v} / ${r.max}`;
+  a.xp.style.width = pct(player.exp, player.level * 100);
+  a.stat.innerHTML = `<span>공격 ${player.atk}</span><span>방어 ${player.def}</span><span>EXP ${player.exp}/${player.level * 100}</span>`;
+  if (monster && PL.m.name) {
+    const b = PL.m, vm = view.m;
+    b.name.textContent = monster.name; b.lv.textContent = `${monster.boss ? "BOSS" : "몬스터"} Lv.${monster.lv || 1}`;
+    b.hp.style.width = b.ghost.style.width = pct(vm.hp, vm.maxHp); b.hpn.textContent = `HP ${vm.hp} / ${vm.maxHp}`;
+    b.bar.classList.toggle("low", vm.hp / vm.maxHp < 0.3);
+    b.shb.hidden = !(vm.shield > 0); b.sh.style.width = pct(vm.shield, 250); b.shn.textContent = `마력 보호막 ${vm.shield}`;
+    b.warn.textContent = monster.extraInfo();
+  }
+}
+function renderHud() {
+  $("#hud-turn").textContent = Math.min(turn, TOTAL); $("#hud-kills").textContent = defeated; $("#hud-potion").textContent = potions;
+  const area = THEMES[Math.min(3, Math.floor((Math.min(turn, TOTAL) - 1) / 3))];
+  $("#hud-area").textContent = area.name;
+  [...$("#track").children].forEach((p, i) => { p.classList.toggle("done", i + 1 < turn); p.classList.toggle("now", i + 1 === turn); });
+}
+function buildTrack() {
+  const t = $("#track"); t.innerHTML = "";
+  for (let i = 1; i <= TOTAL; i++) {
+    const d = document.createElement("div");
+    d.className = "pip" + (i === 12 ? " final" : i % 3 === 0 ? " boss" : "");
+    d.textContent = i === 12 ? "🐉" : i % 3 === 0 ? "★" : i;
+    d.title = i === 12 ? "최종 보스" : i % 3 === 0 ? "보스전" : "전투 " + i;
+    t.appendChild(d);
+  }
+}
+function setPill(kind) {
+  const p = $("#pill");
+  p.className = "pill " + (kind === "me" ? "me" : kind === "en" ? "en" : "");
+  p.textContent = kind === "me" ? "내 차례" : kind === "en" ? "적의 차례" : "";
+}
+function setControls() {
+  if (!player) return;
+  const live = !busy && monster && monster.alive && player.alive, n = player.names();
+  $("#a-attack-sub").textContent = n.atkSub;
+  $("#a-special-name").textContent = n.sp; $("#a-special-sub").textContent = n.spSub;
+  $("#a-ult-name").textContent = n.ul; $("#a-ult-sub").textContent = n.ulSub;
+  $("#a-potion-sub").textContent = `HP +300 · ${potions}개`;
+  $("#a-attack").disabled = !live;
+  $("#a-special").disabled = !live || !player.canSpecial();
+  $("#a-ult").disabled = !live || !player.canUltimate();
+  $("#a-potion").disabled = !live || potions <= 0;
+  renderHud();
+}
+
+/* ---------- 화면 전환 ---------- */
+const SCREENS = ["setup", "reward", "battle", "result"];
+function show(name) {
+  SCREENS.forEach((s) => { $("#screen-" + s).hidden = s !== name; });
+  $("#hud").hidden = name === "setup" || name === "result";
+  window.scrollTo({ top: 0 });
+}
+function applyArea() {
+  const a = Math.min(3, Math.floor((turn - 1) / 3));
+  if (a === areaIdx) return;
+  areaIdx = a; $("#bg").innerHTML = bgHTML(THEMES[a], 11 + a * 7); setAmbient(THEMES[a].amb);
+}
+function resetFighter(s) {
+  const f = F[s]; f.flash.getAnimations().forEach((x) => x.cancel()); f.mover.getAnimations().forEach((x) => x.cancel());
+  void f.flash.offsetWidth;
+  f.mover.style.cssText = ""; f.flash.style.cssText = ""; f.flash.style.opacity = "1"; f.mover.style.opacity = "1";
+  f.el.querySelectorAll(".aura,.bubble").forEach((n) => n.remove());
+}
+
+/* ---------- 게임 진행 ---------- */
+async function newGame() {
+  sfx.unlock(); sfx.ui();
+  const name = ($("#name").value || "").trim() || "용사";
+  const job = document.querySelector("input[name=job]:checked").value;
+  const Cls = { warrior: Warrior, wizard: Wizard, healer: Healer, darkwizard: DarkWizard, archmage: Archmage, yeon: Yeon, hero: Hero }[job];
+  totalCount = 0; monsterCount = 0; Q.length = 0;
+  player = new Cls(name); monster = null;
+  { const ks = Object.keys(RIVAL).filter((k) => k !== player.key); rivalKey = { wizard: "darkwizard", warrior: "hero" }[player.key] || ks[Math.floor(Math.random() * ks.length)]; } areaIdx = -1; PL.m = {};
+  const g = document.querySelector("input[name=sgear]:checked").value;
+  $("#log").innerHTML = "";
+  if (g === "1") { player.atk += 8; log("⚔️ [강철 롱소드]를 장착했습니다! (공격력 +8)", "good"); }
+  else if (g === "2") { player.maxHp += 30; player.hp += 30; player.def += 5; log("🛡️ [견고한 판금 갑옷]을 장착했습니다! (최대 HP +30, 방어력 +5)", "good"); }
+  else { player.atk += 4; player.def += 3; log("💍 [힘의 반지]를 장착했습니다! (공격력 +4, 방어력 +3)", "good"); }
+  potions = 7; turn = 1; defeated = 0; busy = true;
+  log(`🔥 하드 모드 모험을 시작합니다! 총 ${TOTAL}번의 고난도 전투가 기다립니다! (포션: ${potions}개)`, "sys");
+  view.p = { hp: player.hp, maxHp: player.maxHp };
+  buildTrack(); buildPlateP();
+  await flush(true);
+  resetFighter("p"); F.p.flash.innerHTML = ART[player.key]();
+  beginTurn();
+}
+function beginTurn() { if (turn % 3 === 0) showReward(); else spawn(); }
+
+function showReward() {
+  $("#reward-title").textContent = turn === 12 ? "최종 결전 보상" : "보스전 앞 보상";
+  $("#reward-sub").textContent = turn === 12 ? "" + rivalName() + "을(를) 상대하기 위한 최고급 전설 보물을 발견했습니다." : `${turn}번째 강력한 보스전에 앞서 전설 장비를 하나 고르세요.`;
+  $("#reward-stage").innerHTML = `<div style="display:flex;gap:22px;align-items:center;padding:0 16px"><div style="width:96px">${ART[player.key]()}</div><div style="font-size:13px;color:var(--muted);line-height:1.7">Lv.${player.level} ${player.kind} <b style="color:var(--fg)">${esc(player.name)}</b><br>HP <b style="color:var(--fg)">${player.hp}/${player.maxHp}</b> · 공격 <b style="color:var(--fg)">${player.atk}</b> · 방어 <b style="color:var(--fg)">${player.def}</b></div></div>`;
+  renderHud(); show("reward"); sfx.level();
+}
+async function pickReward(r) {
+  sfx.ui();
+  if (r === "1") { player.atk += 25; log(`🔥 [신성한 파괴검]을 장착했습니다! (현재 공격력: ${player.atk})`, "good"); }
+  else if (r === "2") { player.maxHp += 80; player.hp = player.maxHp; player.def += 15; log(`🛡️ [불멸자의 용비늘 갑옷]을 장착했습니다! HP가 완전히 회복됩니다. (현재 HP: ${player.hp})`, "good"); }
+  else { player.atk += 12; player.def += 10; player.maxHp += 30; player.hp += 30; log(`💍 [고대 영웅의 펜던트]를 장착했습니다! (현재 HP: ${player.hp})`, "good"); }
+  await flush(true);
+  spawn(true);
+}
+
+async function spawn(afterReward) {
+  busy = true;
+  if (turn === 12) monster = new RivalBoss(rivalKey);
+  else if (turn % 3 === 0) monster = new Monster(...BOSSES[turn / 3 - 1], true);
+  else monster = Monster.createRandom(3);
+  scaleToLevel(monster);
+  const dragon = monster.sprite === "dragon";
+  applyArea();
+  resetFighter("m"); resetFighter("p");
+  F.m.el.className = "fighter m" + (dragon ? " dragon" : monster.boss ? " boss" : "");
+  F.m.flash.innerHTML = monsterArt(monster.sprite); F.m.flash.classList.toggle("drawn", monster.sprite === "yeon");
+  F.p.flash.innerHTML = ART[player.key]();
+  view = { p: { hp: player.hp, maxHp: player.maxHp }, m: { hp: monster.hp, maxHp: monster.maxHp, shield: 0 } };
+  buildPlateM(); updatePlates();
+  const dv = document.createElement("p"); dv.className = "div";
+  dv.textContent = turn === 12 ? `⚔️ [최종 전투 ${turn}/${TOTAL}] ${monster.name}이(가) 강림했습니다!` : monster.boss ? `🔥 [전투 ${turn}/${TOTAL}] 강력한 [${monster.name}]이(가) 나타났습니다!` : `👾 [전투 ${turn}/${TOTAL}] 야생의 [${monster.name}]이(가) 나타났다!`;
+  $("#log").appendChild(dv); $("#log").scrollTop = 1e6;
+  $("#caption").textContent = dv.textContent;
+  $("#next-wrap").hidden = true; $("#actions").hidden = false;
+  show("battle"); setPill(""); setControls();
+  F.m.mover.style.opacity = 0; F.p.mover.style.opacity = 0;
+  await wait(60);
+  const th = THEMES[areaIdx];
+  if (turn === 12) { showBanner("FINAL BATTLE", monster.name, "#ff7a5a"); sfx.roar(); shake(7, 700); flash("#ff5a2a", 0.3, 800); }
+  else if (monster.boss) { showBanner("BOSS BATTLE", monster.name, th.banner); sfx.roar(); }
+  else showBanner(`BATTLE ${turn}`, monster.name, "#fff");
+  F.p.mover.style.opacity = 1;
+  anim(F.p.mover, [{ transform: "translateX(-90px)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 420, easing: "ease-out" });
+  await wait(250);
+  F.m.mover.style.opacity = 1;
+  if (monster.boss) {
+    const k = [{ transform: "translateY(-260px)", opacity: 0 }, { transform: "none", opacity: 1, offset: 0.7 }, { transform: "translateY(6px)", offset: 0.82 }, { transform: "none" }];
+    await anim(F.m.mover, k, { duration: 560, easing: "cubic-bezier(.6,0,1,.7)" });
+    dust("m"); const f = feet("m"); burst(f.x, f.y, { n: 24, color: ["#d8cfb6", "#8d8672"], speed: 4, size: 5, life: 600, grav: 0.03, angle: -Math.PI / 2, spread: 3 });
+    shake(dragon ? 12 : 8, 420); sfx.boom();
+  } else {
+    await anim(F.m.mover, [{ transform: "translateX(90px)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 380, easing: "ease-out" });
+  }
+  await wait(500);
+  busy = false; setPill("me"); setControls();
+}
+
+const SKILL_COL = { archmage: "#ffb347", warrior: "#ff8a3a", wizard: "#ff5a4a", healer: "#7dffb0", darkwizard: "#5dff8a", yeon: "#6ec8ff", hero: "#ffd36a" };
+function fxEl(css, parent) { const d = document.createElement("div"); d.style.cssText = css; (parent || fxl).appendChild(d); return d; }
+function skillTag(text, color) {
+  if (RM) return;
+  const c = pt("p", 0.5, -0.02);
+  const d = fxEl(`position:absolute;left:${c.x}px;top:${c.y}px;transform:translate(-50%,-100%);padding:3px 14px;border-radius:999px;font-weight:800;font-size:15px;letter-spacing:.06em;color:#fff;background:linear-gradient(90deg,transparent,${color}cc,transparent);text-shadow:0 0 8px ${color},0 1px 0 #000;white-space:nowrap;pointer-events:none;z-index:30`);
+  d.textContent = text;
+  anim(d, [{ opacity: 0, transform: "translate(-50%,-60%) scale(.7)" }, { opacity: 1, transform: "translate(-50%,-100%) scale(1.08)", offset: 0.18 }, { opacity: 1, transform: "translate(-50%,-110%) scale(1)", offset: 0.75 }, { opacity: 0, transform: "translate(-50%,-140%) scale(1)" }], { duration: 1000 }).then(() => d.remove());
+}
+function cutIn(name, sub, color) {
+  if (RM) return wait(250);
+  const wrap = fxEl("position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:60", stage);
+  const dim = fxEl("position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(0,0,0,.25),rgba(0,0,0,.82))", wrap);
+  const band = fxEl(`position:absolute;left:-10%;top:34%;width:120%;height:92px;transform:rotate(-5deg);background:linear-gradient(90deg,transparent,${color}99 18%,${color}ee 50%,${color}99 82%,transparent);box-shadow:0 0 40px ${color}`, wrap);
+  fxEl("position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.55) 0 2px,transparent 2px 38px);opacity:.45", band);
+  const txt = fxEl(`position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-shadow:0 0 14px ${color},3px 3px 0 rgba(0,0,0,.55);font-weight:900;font-style:italic;font-size:34px;letter-spacing:.08em;line-height:1`, band);
+  txt.innerHTML = `<span>${name}</span><span style="font-size:12px;letter-spacing:.3em;opacity:.9;margin-top:7px">${sub}</span>`;
+  ["top", "bottom"].forEach((pos) => { const bar = fxEl(`position:absolute;left:0;right:0;${pos}:0;height:0;background:#000;z-index:58;pointer-events:none`, stage); anim(bar, [{ height: "0px" }, { height: "26px", offset: 0.12 }, { height: "26px", offset: 0.86 }, { height: "0px" }], { duration: 3400, easing: "ease-out" }).then(() => bar.remove()); });
+  flash(color, 0.35, 300);
+  anim(dim, [{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], { duration: 900 });
+  anim(band, [{ transform: "rotate(-5deg) translateX(-100%)" }, { transform: "rotate(-5deg) translateX(0)", offset: 0.22, easing: "ease-out" }, { transform: "rotate(-5deg) translateX(3%)", offset: 0.78 }, { transform: "rotate(-5deg) translateX(100%)" }], { duration: 900 });
+  anim(txt, [{ transform: "scale(1.4)", opacity: 0 }, { transform: "scale(1)", opacity: 1, offset: 0.25 }, { transform: "scale(1.04)", opacity: 1, offset: 0.8 }, { opacity: 0 }], { duration: 900 });
+  return wait(880).then(() => wrap.remove());
+}
+function speedLines(t, color, n, power) {
+  if (RM) return;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "-200 -200 400 400");
+  svg.style.cssText = `position:absolute;left:${t.x - 200}px;top:${t.y - 200}px;width:400px;height:400px;pointer-events:none;overflow:visible;z-index:25`;
+  let h = "";
+  for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, r1 = 26 + Math.random() * 22, r2 = r1 + (50 + Math.random() * 90) * power; h += `<line x1="${Math.cos(a) * r1}" y1="${Math.sin(a) * r1}" x2="${Math.cos(a) * r2}" y2="${Math.sin(a) * r2}" stroke="${i % 3 ? "#fff" : color}" stroke-width="${1.5 + Math.random() * 3}" stroke-linecap="round"/>`; }
+  svg.innerHTML = h; fxl.appendChild(svg);
+  anim(svg, [{ opacity: 1, transform: "scale(.55)" }, { opacity: 1, transform: "scale(1)", offset: 0.4 }, { opacity: 0, transform: "scale(1.35)" }], { duration: 380, easing: "ease-out" }).then(() => svg.remove());
+}
+function groundWave(color, power) {
+  if (RM) return; const f = feet("m");
+  for (let i = 0; i < 2; i++) {
+    const d = fxEl(`position:absolute;left:${f.x}px;top:${f.y}px;width:120px;height:34px;border:3px solid ${color};border-radius:50%;box-shadow:0 0 16px ${color},inset 0 0 12px ${color};pointer-events:none;opacity:0`);
+    anim(d, [{ transform: "translate(-50%,-50%) scale(.2)", opacity: 0.9 }, { transform: `translate(-50%,-50%) scale(${(4 + power * 3).toFixed(1)})`, opacity: 0 }], { duration: 560, delay: i * 110, fill: "backwards", easing: "ease-out" }).then(() => d.remove());
+  }
+}
+function lightRays(t, color) {
+  if (RM) return;
+  const d = fxEl(`position:absolute;left:${t.x}px;top:${t.y}px;width:460px;height:460px;margin:-230px 0 0 -230px;background:repeating-conic-gradient(${color} 0 5deg,transparent 5deg 22deg);-webkit-mask-image:radial-gradient(circle,#000 0,transparent 68%);mask-image:radial-gradient(circle,#000 0,transparent 68%);mix-blend-mode:screen;pointer-events:none;opacity:0`);
+  anim(d, [{ opacity: 0, transform: "rotate(0deg) scale(.3)" }, { opacity: 0.9, transform: "rotate(18deg) scale(.9)", offset: 0.3 }, { opacity: 0, transform: "rotate(45deg) scale(1.3)" }], { duration: 700, easing: "ease-out" }).then(() => d.remove());
+}
+function zoomPunch(t, scale, ms) {
+  if (RM) return; stageIn.style.transformOrigin = `${t.x}px ${t.y}px`;
+  stageIn.animate([{ transform: "scale(1)" }, { transform: `scale(${scale})`, offset: 0.22 }, { transform: "scale(1)" }], { duration: ms, easing: "ease-out", composite: "add" }).finished.catch(() => {}).then(() => { stageIn.style.transformOrigin = ""; });
+}
+function weaponFlyFx(x, y) {
+  if (RM) return;
+  const d = fxEl(`position:absolute;left:${x}px;top:${y}px;width:70px;height:12px;margin:-6px 0 0 -35px;background:linear-gradient(90deg,#8a5a2e,#d8c9a0);border-radius:6px;box-shadow:0 0 12px #ff3a3a;pointer-events:none;z-index:30;opacity:0`);
+  anim(d, [{ opacity: 1, transform: "translate(0,0) rotate(0deg)" }, { opacity: 1, transform: "translate(70px,-150px) rotate(360deg)", offset: 0.45 }, { opacity: 1, transform: "translate(140px,-60px) rotate(720deg)", offset: 0.75 }, { opacity: 0, transform: "translate(210px,120px) rotate(1080deg)" }], { duration: 1000, easing: "ease-out" }).then(() => d.remove());
+}
+function whipFx(a, b) {
+  if (RM) return wait(400);
+  const pad = 80, x0 = Math.min(a.x, b.x) - pad, y0 = Math.min(a.y, b.y) - pad - 60, W = Math.abs(b.x - a.x) + pad * 2, H = Math.abs(b.y - a.y) + pad * 2 + 120;
+  const ax = a.x - x0, ay = a.y - y0, bx = b.x - x0, by = b.y - y0, my = Math.min(ay, by) - 70;
+  const d = `M${ax} ${ay}C${ax + (bx - ax) * 0.25} ${my} ${ax + (bx - ax) * 0.7} ${my + 130} ${bx} ${by}`;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.style.cssText = `position:absolute;left:${x0}px;top:${y0}px;width:${W}px;height:${H}px;overflow:visible;pointer-events:none;z-index:28;filter:drop-shadow(0 0 10px #ff6a1a) drop-shadow(0 0 22px #ff4a0a)`;
+  svg.innerHTML = `<path class="wp" d="${d}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" stroke="#ff6a1a" stroke-width="14" fill="none" stroke-linecap="round"/><path class="wp" d="${d}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" stroke="#ffb347" stroke-width="8" fill="none" stroke-linecap="round"/><path class="wp" d="${d}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  fxl.appendChild(svg);
+  svg.querySelectorAll(".wp").forEach((q) => q.animate([{ strokeDashoffset: 100 }, { strokeDashoffset: 0 }], { duration: 260, fill: "forwards", easing: "ease-out" }));
+  const path = svg.querySelector(".wp"), L = path.getTotalLength();
+  for (let k = 0; k <= 8; k++) setTimeout(() => { const q = path.getPointAtLength((L * k) / 8); burst(x0 + q.x, y0 + q.y, { n: 6, color: ["#ff4a0a", "#ff9a2a", "#ffe27a"], speed: 2, size: 5, life: 480, grav: -0.05 }); }, k * 30);
+  return anim(svg, [{ opacity: 1 }, { opacity: 1, offset: 0.6 }, { opacity: 0 }], { duration: 760 }).then(() => svg.remove());
+}
+function phoenixFx(a, b) {
+  if (RM) return wait(700);
+  const flip = b.x < a.x ? -1 : 1, dx = b.x - a.x, dy = b.y - a.y;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 140 120");
+  svg.style.cssText = `position:absolute;left:${a.x - 70}px;top:${a.y - 60}px;width:140px;height:120px;pointer-events:none;overflow:visible;z-index:29;opacity:0;filter:drop-shadow(0 0 10px #ff9a2a) drop-shadow(0 0 26px #ff6a1a)`;
+  svg.innerHTML = `<defs><linearGradient id="pf" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff4a0a"/><stop offset=".5" stop-color="#ff9a2a"/><stop offset="1" stop-color="#ffe27a"/></linearGradient></defs><g fill="url(#pf)" stroke="#fff3b0" stroke-width="1.4" stroke-linejoin="round"><ellipse cx="80" cy="64" rx="26" ry="14"/><path d="M102 58L122 50L136 56L122 62Z"/><path d="M60 60Q30 20 8 14Q30 40 40 66Z"/><path d="M82 54Q70 8 28 0Q50 30 62 58Z"/><path d="M60 70Q30 100 4 112Q36 96 64 84Z"/><path d="M58 66Q24 78 0 84Q30 84 58 76Z"/><path d="M70 76Q50 112 28 118Q56 108 78 82Z"/><circle cx="122" cy="56" r="2" fill="#fff" stroke="none"/></g>`;
+  fxl.appendChild(svg);
+  const T = (x, y, r, sc) => `translate(${x}px,${y}px) rotate(${r * flip}deg) scale(${flip * sc},${sc})`;
+  const iv = setInterval(() => { const r = svg.getBoundingClientRect(), bb = fxl.getBoundingClientRect(); burst(r.x - bb.x + r.width / 2, r.y - bb.y + r.height / 2, { n: 5, color: ["#ff4a0a", "#ff9a2a", "#ffe27a"], speed: 2.5, size: 5, life: 520, grav: -0.04 }); }, 40);
+  return anim(svg, [{ opacity: 0, transform: T(0, 0, -10, 0.4) }, { opacity: 1, transform: T(dx * 0.3, dy * 0.3 - 150, -22, 0.9), offset: 0.35 }, { opacity: 1, transform: T(dx * 0.75, dy * 0.75 - 110, 12, 1.4), offset: 0.7 }, { opacity: 0.95, transform: T(dx, dy, 28, 1.8) }], { duration: 900, easing: "ease-in" }).then(() => { clearInterval(iv); svg.remove(); });
+}
+function bladePt(t) {
+  const g = F.p.flash.querySelector(".y-blade"), svg = g && g.ownerSVGElement;
+  if (!g) return pt("p", 0.8, 0.1);
+  const m = g.getScreenCTM(), P = svg.createSVGPoint(), b = fxl.getBoundingClientRect();
+  P.x = 148; P.y = 126 - t * 100;
+  const q = P.matrixTransform(m);
+  return { x: q.x - b.x, y: q.y - b.y };
+}
+function holyBlade(x, y) {
+  if (RM) return wait(300);
+  const W = 96, H = 340, svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 60 220");
+  svg.style.cssText = `position:absolute;left:${x - W / 2}px;top:${y - H}px;width:${W}px;height:${H}px;pointer-events:none;overflow:visible;z-index:29;opacity:0;filter:drop-shadow(0 0 12px #ffe27a) drop-shadow(0 0 28px #fff3b0)`;
+  svg.innerHTML = `<defs><linearGradient id="hb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".6" stop-color="#fff3b0"/><stop offset="1" stop-color="#ffd24a"/></linearGradient></defs><path d="M30 218L17 156L17 24L43 24L43 156Z" fill="url(#hb)" stroke="#fff" stroke-width="1.5"/><path d="M30 40V200" stroke="#ffe9a0" stroke-width="2" opacity=".8"/><rect x="6" y="14" width="48" height="10" rx="4" fill="#ffd24a" stroke="#fff" stroke-width="1.2"/><rect x="25" y="0" width="10" height="16" rx="3" fill="#e0a82a"/>`;
+  fxl.appendChild(svg);
+  const a = anim(svg, [{ opacity: 0, transform: "translateY(-460px) scale(.8)" }, { opacity: 1, transform: "translateY(-120px) scale(1)", offset: 0.55 }, { opacity: 1, transform: "translateY(0) scale(1.05)", offset: 0.8 }, { opacity: 0, transform: "translateY(10px) scale(1.3)" }], { duration: 560, easing: "cubic-bezier(.5,0,.9,.5)" });
+  a.then(() => svg.remove()); return a;
+}
+function runeCircle(color, side) {
+  if (RM) return; const f = feet(side || "p");
+  [[220, 64, "dashed", 3], [150, 44, "solid", 2]].forEach(([w, h, st, bw]) => {
+    const d = fxEl(`position:absolute;left:${f.x}px;top:${f.y}px;width:${w}px;height:${h}px;border:${bw}px ${st} ${color};border-radius:50%;box-shadow:0 0 18px ${color},inset 0 0 14px ${color};pointer-events:none;opacity:0;z-index:3`);
+    anim(d, [{ opacity: 0, transform: "translate(-50%,-50%) scale(.3)" }, { opacity: 1, transform: "translate(-50%,-50%) scale(1)", offset: 0.3 }, { opacity: 1, offset: 0.8 }, { opacity: 0, transform: "translate(-50%,-50%) scale(1.15)" }], { duration: 1300 }).then(() => d.remove());
+  });
+}
+function hitStop(ms) {
+  if (RM) return;
+  const as = document.getAnimations().filter((a) => a.playState === "running");
+  as.forEach((a) => a.pause());
+  setTimeout(() => as.forEach((a) => { try { a.play(); } catch (e) {} }), ms);
+}
+function ultImpact(color) {
+  if (RM) return;
+  hitStop(120);
+  const inv = fxEl("position:absolute;inset:0;background:#fff;mix-blend-mode:difference;pointer-events:none;z-index:72", stage);
+  anim(inv, [{ opacity: 1 }, { opacity: 1, offset: 0.5 }, { opacity: 0 }], { duration: 150 }).then(() => inv.remove());
+  stageIn.animate([{ filter: "none" }, { filter: "drop-shadow(7px 0 0 rgba(255,40,80,.55)) drop-shadow(-7px 0 0 rgba(40,200,255,.55)) saturate(1.5) contrast(1.2)", offset: 0.2 }, { filter: "none" }], { duration: 440, delay: 120, easing: "ease-out" });
+}
+function groundFissure(xa, xb, y, col) {
+  if (RM) return;
+  const x1 = Math.min(xa, xb), W = Math.max(40, Math.abs(xb - xa)), H = 70, rev = xa > xb, n = 12, pts = [];
+  for (let i = 0; i <= n; i++) pts.push([(i * W) / n, H / 2 + (i === 0 || i === n ? 0 : (i % 2 ? 1 : -1) * (8 + Math.random() * 16))]);
+  if (rev) pts.reverse();
+  const d = pts.map((q, i) => (i ? "L" : "M") + q[0].toFixed(1) + " " + q[1].toFixed(1)).join("");
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("preserveAspectRatio", "none");
+  svg.style.cssText = `position:absolute;left:${x1}px;top:${y - H / 2}px;width:${W}px;height:${H}px;overflow:visible;z-index:6;pointer-events:none;filter:drop-shadow(0 0 8px ${col}) drop-shadow(0 0 18px ${col})`;
+  svg.innerHTML = `<path class="gf" d="${d}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" stroke="${col}" stroke-width="9" fill="none" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/><path class="gf" d="${d}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" stroke="#fff" stroke-width="3" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`;
+  fxl.appendChild(svg);
+  svg.querySelectorAll(".gf").forEach((q) => q.animate([{ strokeDashoffset: 100 }, { strokeDashoffset: 0 }], { duration: 240, fill: "forwards", easing: "ease-out" }));
+  anim(svg, [{ opacity: 1 }, { opacity: 1, offset: 0.4 }, { opacity: 0 }], { duration: 1000 }).then(() => svg.remove());
+  for (let k = 1; k <= 4; k++) setTimeout(() => { const px = xa + ((xb - xa) * k) / 5; pillarFx(px, col, 520, 60); burst(px, y, { n: 10, color: [col, "#ffd36a", "#3a1a10"], speed: 5, life: 520, grav: 0.1 }); }, 50 * k + 60);
+}
+function beamFx(a, b, color, ms) {
+  if (RM) return wait(ms);
+  const len = Math.hypot(b.x - a.x, b.y - a.y), ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+  const d = fxEl(`position:absolute;left:${a.x}px;top:${a.y}px;width:${len}px;height:26px;margin-top:-13px;transform-origin:0 50%;transform:rotate(${ang}deg);background:linear-gradient(180deg,transparent,${color} 30%,#fff 50%,${color} 70%,transparent);border-radius:13px;box-shadow:0 0 30px ${color},0 0 70px ${color};pointer-events:none;z-index:28;opacity:0`);
+  return anim(d, [{ opacity: 0, clipPath: "inset(0 100% 0 0)" }, { opacity: 1, clipPath: "inset(0 0% 0 0)", offset: 0.18 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }], { duration: ms }).then(() => d.remove());
+}
+function angelWings(color) {
+  if (RM) return;
+  const host = F.p.flash;
+  let g = "";
+  [1, -1].forEach((sd) => { for (let i = 0; i < 6; i++) g += `<g transform="translate(180 150) scale(${sd} 1) rotate(${28 + i * 15})"><path d="M0 0C20 -22 28 -84 6 -${130 + (5 - i) * 6}C-5 -90 -14 -40 0 0Z" fill="url(#wg)" stroke="#fff" stroke-width="1.2" opacity="${(0.95 - i * 0.04).toFixed(2)}"/></g>`; });
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 360 240");
+  svg.style.cssText = `position:absolute;left:50%;top:38%;width:360px;height:240px;margin:-150px 0 0 -180px;overflow:visible;pointer-events:none;z-index:-1;opacity:0;filter:drop-shadow(0 0 10px ${color}) drop-shadow(0 0 26px ${color})`;
+  svg.innerHTML = `<defs><linearGradient id="wg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff"/><stop offset=".7" stop-color="#fff3b0"/><stop offset="1" stop-color="${color}"/></linearGradient></defs>${g}`;
+  host.appendChild(svg);
+  anim(svg, [{ opacity: 0, transform: "scale(.2)" }, { opacity: 1, transform: "scale(1.08)", offset: 0.3 }, { opacity: 1, transform: "scale(.94)", offset: 0.45 }, { opacity: 1, transform: "scale(1.04)", offset: 0.6 }, { opacity: 1, transform: "scale(1)", offset: 0.85 }, { opacity: 0, transform: "scale(1.15)" }], { duration: 1700, easing: "ease-out" }).then(() => svg.remove());
+}
+async function bossUlt(m, apply) {
+  const U = MON_ULT[m.sprite], col = U.col, a0 = apply;
+  apply = () => { ultImpact(col); a0(); };
+  await cutIn(U.name, `${m.name} · 궁극기`, col);
+  const fm = feet("m"), fp = feet("p");
+  if (m.sprite === "orc-captain") {
+    aura("m", col, 900); sfx.roar();
+    await moveTo("m", 46, 2, 340, "ease-out"); await wait(90);
+    afterimage("m", col, 5, 30);
+    const dx = reach("m", 0.12);
+    await moveTo("m", dx, 0, 200, "cubic-bezier(.5,0,1,.4)");
+    const t = target("m"); ringFx(t.x, fp.y - 10, col, 240, 640); groundWave(col, 1);
+    burst(t.x, t.y, { n: 70, color: [col, "#fff", "#cfe8ff"], speed: 9, size: 5, life: 760 });
+    flash(col, 0.6, 400); shake(24, 600); sfx.boom();
+    apply(); await flush(); await wait(160);
+    await moveTo("m", 0, 0, 320, "ease-in-out");
+  } else if (m.sprite === "orc-berserker") {
+    aura("m", col, 800); sfx.roar();
+    await moveTo("m", 22, -6, 200, "ease-out");
+    for (let k = 0; k < 5; k++) {
+      const dx = reach("m", 0.2 + (k % 2) * 0.05);
+      await moveTo("m", dx, k % 2 ? -14 : 6, 90, "cubic-bezier(.5,0,1,.5)");
+      const t = target("m");
+      slashFx(t.x, t.y, { color: k % 2 ? "#fff" : col, size: 150 + k * 14, flip: true, angle: -30 + k * 22 });
+      burst(t.x, t.y, { n: 12, color: [col, "#fff", "#7a0f1c"], speed: 6, life: 320 }); shake(7 + k * 2, 160); sfx.slash();
+      if (k === 4) { flash("#fff", 0.6, 300); shake(20, 460); sfx.boom(); apply(); await flush(); }
+      await wait(50); if (k < 4) await moveTo("m", 22, 0, 70, "ease-out");
+    }
+    await wait(120); await moveTo("m", 0, 0, 300, "ease-in-out");
+  } else {
+    aura("m", col, 1100); sfx.roar();
+    const me = pt("m", 0.5, 0.5);
+    await moveTo("m", 10, -40, 360, "ease-out");
+    pillarFx(me.x, col, 900, 110); ringFx(me.x, fm.y, col, 200, 700);
+    groundFissure(fm.x, fp.x, fp.y, col);
+    await wait(520);
+    const t = pt("p", 0.5, 0.5);
+    burst(t.x, t.y, { n: 90, color: [col, "#ffd36a", "#fff", "#c0392b"], speed: 10, size: 5, life: 820 });
+    for (let k = 0; k < 3; k++) setTimeout(() => ringFx(t.x, fp.y - 10, col, 220 + k * 70, 640), k * 90);
+    flash(col, 0.7, 440); shake(26, 700); sfx.boom();
+    apply(); await flush(); await wait(160);
+    await moveTo("m", 0, 0, 320, "ease-in-out");
+  }
+  await weaponBase("m", 200);
+}
+function explosionFx(x, y) {
+  if (RM) return;
+  const ball = fxEl(`position:absolute;left:${x}px;top:${y}px;width:260px;height:260px;margin:-130px 0 0 -130px;border-radius:50%;background:radial-gradient(circle,#fff 0,#ffe27a 22%,#ff8a2a 50%,rgba(120,30,10,.75) 72%,transparent 74%);box-shadow:0 0 80px #ff8a2a;pointer-events:none;opacity:0;z-index:28`);
+  anim(ball, [{ opacity: 1, transform: "scale(.2)" }, { opacity: 1, transform: "scale(1.1)", offset: 0.35 }, { opacity: 0, transform: "scale(1.7)" }], { duration: 760, easing: "ease-out" }).then(() => ball.remove());
+  const smoke = fxEl(`position:absolute;left:${x}px;top:${y}px;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;background:radial-gradient(circle,rgba(60,40,35,.85),rgba(30,20,20,.5) 60%,transparent 72%);pointer-events:none;opacity:0;z-index:27`);
+  anim(smoke, [{ opacity: 0, transform: "translateY(0) scale(.3)" }, { opacity: 0.9, transform: "translateY(-30px) scale(1)", offset: 0.4 }, { opacity: 0, transform: "translateY(-110px) scale(1.5)" }], { duration: 1200, delay: 120, fill: "backwards", easing: "ease-out" }).then(() => smoke.remove());
+  burst(x, y, { n: 90, color: ["#fff", "#ffd36a", "#ff8a2a", "#c0392b"], speed: 11, size: 6, life: 900 });
+  burst(x, y, { n: 50, color: ["#5a4636", "#3a2c24", "#8a7a68"], speed: 8, size: 7, life: 1100, grav: 0.12 });
+  for (let k = 0; k < 3; k++) setTimeout(() => ringFx(x, y, k % 2 ? "#ffd36a" : "#ff8a2a", 220 + k * 80, 640), k * 100);
+}
+function hitJuice(kind, color) {
+  const t = target("p"), big = kind === "ult";
+  if (kind === "attack") { speedLines(t, color, 10, 0.5); zoomPunch(t, 1.03, 200); return; }
+  speedLines(t, color, big ? 30 : 18, big ? 1.1 : 0.75); zoomPunch(t, big ? 1.12 : 1.06, big ? 460 : 300); groundWave(color, big ? 1 : 0.6);
+  if (big) { lightRays(t, color); flash(color, 0.5, 300); ultImpact(color); }
+}
+async function playerTurn(kind) {
+  const ch = CH[player.key], apply = () => {
+    if (kind === "attack") player.attack(monster);
+    else if (kind === "special") player.special(monster);
+    else if (kind === "ult") player.ultimate(monster);
+    updatePlates();
+  };
+  const col = kind === "ult" && player.key === "archmage" ? "#ff4a4a" : (player.key === "wizard" || player.key === "yeon") && kind === "ult" ? "#ff8a2a" : SKILL_COL[player.key] || "#fff", nm = player.names();
+  const dm = !(player.key === "healer" && kind !== "attack");
+  const ap = dm && (kind === "attack" || kind === "special" || kind === "ult") ? () => { hitJuice(kind, col); apply(); } : apply;
+  if (kind === "special") skillTag(nm.sp, col);
+  if (kind === "ult") await cutIn(nm.ul, `${player.kind} · 궁극기`, col);
+  if (kind === "attack") await ch.attack(ap);
+  else if (kind === "special") await ch.special(ap);
+  else if (kind === "ult") await ch.ultimate(ap);
+  else if (kind === "potion") {
+    potions--;
+    await potionFx(() => {
+      player.heal(300);
+      log(`🧪 고급 힐링 포션을 사용했습니다! HP +300 회복 (남은 포션: ${potions}개)`, "good");
+      log(`${player.name}의 현재 HP: ${player.hp}`, "good");
+    });
+  }
+  updatePlates(); renderHud();
+}
+
+async function reviveFx() {
+  player.revive(); await flush();
+  const me = pt("p", 0.5, 0.5);
+  ringFx(me.x, me.y, "#5dff8a", 200, 800); flash("#3cff8a", 0.45, 700);
+  burst(me.x, me.y, { n: 50, color: ["#5dff8a", "#b6ffcb", "#fff"], speed: 5, life: 800, grav: -0.02 });
+  sparkles("p", ["#5dff8a", "#fff"], 900); sfx.level();
+  setControls(); await wait(800);
+}
+async function act(kind) {
+  if (busy || !monster || !monster.alive || !player.alive) return;
+  if ((kind === "special" && !player.canSpecial()) || (kind === "ult" && !player.canUltimate()) || (kind === "potion" && potions <= 0)) return;
+  sfx.unlock(); busy = true; setControls(); setPill("me");
+  await playerTurn(kind);
+  if (!monster.alive) { await victory(); return; }
+  setPill("en"); await wait(350);
+  await monsterTurn();
+  if (!player.alive && player.canRevive && player.canRevive()) await reviveFx();
+  if (!player.alive) { await defeat(); return; }
+  busy = false; setPill("me"); setControls();
+}
+
+async function victory() {
+  setPill("");
+  defeated++;
+  const c = pt("m", 0.5, 0.5), dragon = monster.sprite === "dragon";
+  log(`🎉 ${monster.name}을(를) 처치했습니다!`, "lvl");
+  sfx.boom();
+  for (let i = 0; i < (dragon ? 5 : 1); i++) setTimeout(() => burst(c.x + rnd(-40, 40), c.y + rnd(-30, 30), { n: 40, color: ["#fff", "#ffd36a", "#ff8a4a", "#ff5a3a"], speed: 6, size: 5, life: 700 }), i * 140);
+  if (dragon) { flash("#fff", 0.7, 700); shake(12, 700); }
+  await anim(F.m.flash, [{ filter: "brightness(1)", opacity: 1, transform: "none" }, { filter: "brightness(3) saturate(0)", opacity: 1, offset: 0.3 }, { filter: "brightness(3) saturate(0)", opacity: 0, transform: "scale(.7) translateY(30px)" }], { duration: dragon ? 900 : 620 });
+  F.m.flash.getAnimations().forEach((x) => x.cancel()); F.m.flash.style.opacity = "0";
+  player.gainExp(monster.expReward);
+  await flush();
+  setControls();
+  if (turn >= TOTAL) { await wait(500); endGame(); return; }
+  $("#actions").hidden = true; $("#next-wrap").hidden = false; $("#btn-next").focus({ preventScroll: true });
+}
+async function defeat() {
+  setPill("");
+  log(`☠️ ${player.name}이(가) 강력한 공격을 견디지 못하고 쓰러졌습니다...`, "bad");
+  await flush(true);
+  sfx.lose();
+  const c = pt("p", 0.5, 0.5); burst(c.x, c.y, { n: 30, color: ["#999", "#ccc", "#ff8a7a"], speed: 3.5, life: 800, grav: 0.05 });
+  await anim(F.p.flash, [{ transform: "none", filter: "none", opacity: 1 }, { transform: "rotate(86deg) translate(8px,14px)", filter: "grayscale(1) brightness(.55)", opacity: 0.9 }], { duration: 700, easing: "ease-in", fill: "forwards" });
+  await wait(700);
+  endGame();
+}
+
+function endGame() {
+  const win = player.alive && defeated >= TOTAL;
+  $("#result-bg").innerHTML = bgHTML(THEMES[win ? 0 : 3], win ? 5 : 9);
+  $("#result-art").className = "result-art " + (win ? "win" : "lose");
+  $("#result-sprite").innerHTML = ART[player.key]();
+  $("#result-sprite").style.height = "150px";
+  const t = $("#result-title");
+  t.className = "result-title " + (win ? "win" : "lose");
+  t.textContent = win ? `전설적인 공략! ${rivalName()}을(를) 쓰러뜨렸습니다` : "Game Over. 하드 모드의 벽을 넘지 못했습니다";
+  $("#result-stats").innerHTML = `
+    <dt>최종 캐릭터</dt><dd>Lv.${player.level} ${esc(player.kind)} ${esc(player.name)} (HP ${player.hp}/${player.maxHp})</dd>
+    <dt>공격력 / 방어력</dt><dd>${player.atk} / ${player.def}</dd>
+    <dt>처치한 몬스터</dt><dd>${defeated} / ${TOTAL}</dd>
+    <dt>남은 힐링 포션</dt><dd>${potions}개</dd>
+    <dt>생성된 객체</dt><dd>Character ${totalCount}명 / Monster ${monsterCount}마리</dd>`;
+  show("result");
+  if (win) { sfx.win(); confetti(); }
+}
+
+/* ---------- 시작 화면 구성 ---------- */
+const JOBS = [
+  { k: "warrior", n: "전사", s: "HP 230 · 공격 50 · 방어 24", d: "공격할 때마다 분노가 쌓인다. 분노 30에서 분노 폭발, 100에서 궁극기." },
+  { k: "wizard", n: "마법사", s: "HP 90 · 공격 36 · 방어 9", d: "붉은 섬광으로 마나를 모으는 마법학교 출신. 스투페파이는 공격력 3.5배, 궁극기 봄바르다 맥시마는 방어를 무시하는 ×8 대폭발." },
+  { k: "healer", n: "힐러", s: "HP 100 · 공격 15 · 방어 10", d: "빛의 화살로 마나 +15 회복. 치유로 HP 40 회복, 궁극기는 HP 완전 회복과 공격력 +15." },
+  { k: "darkwizard", n: "흑마법사", s: "HP 90 · 공격 36 · 방어 9", d: "크루시오로 적의 방어를 깎고 마나를 모은다. 호크룩스로 1회 부활, 궁극기는 아바다 케다브라(즉사)." },
+  { k: "archmage", n: "대마법사", s: "HP 130 · 공격 34 · 방어 12", d: "마나 120의 지혜로운 대마법사. 불꽃의 채찍은 ×3.4와 불꽃 장막, 궁극기 엑스펠리아르무스는 방어를 완전히 무시하는 ×14 일격과 적의 공격력을 절반으로 깎는 무장 해제." },
+  { k: "yeon", n: "이연 (구미호 신)", s: "HP 10000 · 공격 10000 · 방어 10000", d: "세계관 최강자. 발도 일격으로 신력을 모아 여우구슬을 터뜨리고, 신력이 가득 차면 번개를 검에 받아 불꽃을 두르고 베어버린다." },
+  { k: "hero", n: "영웅", s: "HP 200 · 공격 80 · 방어 60", d: "좋은 기본 스탯. 공격할 때마다 마나가 15 회복된다." },
+];
+function buildSetup() {
+  $("#jobs").innerHTML = JOBS.map((j, i) => `<label class="pick"><input type="radio" name="job" value="${j.k}"${i === 0 ? " checked" : ""}><div class="pv">${ART[j.k]()}</div><b>${j.n}</b><span class="stats">${j.s}</span><span class="desc">${j.d}</span></label>`).join("");
+  $("#gear-start").innerHTML = [
+    ["1", ICON.sword, "강철 롱소드", "공격력 +8"], ["2", ICON.armor, "견고한 판금 갑옷", "최대 HP +30 · 방어력 +5"], ["3", ICON.ring, "힘의 반지", "공격력 +4 · 방어력 +3"],
+  ].map((g, i) => `<label class="pick"><input type="radio" name="sgear" value="${g[0]}"${i === 0 ? " checked" : ""}><span class="gi">${g[1]}<b>${g[2]}</b></span><span class="desc">${g[3]}</span></label>`).join("");
+  $("#reward-picks").innerHTML = [
+    ["1", ICON.sword, "신성한 파괴검", "공격력 +25"], ["2", ICON.armor, "불멸자의 용비늘 갑옷", "최대 HP +80 · HP 완전 회복 · 방어력 +15"], ["3", ICON.ring, "고대 영웅의 펜던트", "공격력 +12 · 방어력 +10 · 최대 HP +30"],
+  ].map((g) => `<button class="pick legend" type="button" data-r="${g[0]}"><span class="gi">${g[1]}<b>${g[2]}</b></span><span class="desc">${g[3]}</span></button>`).join("");
+  $("#title-bg").innerHTML = bgHTML(THEMES[0], 3);
+  $("#title-dragon").innerHTML = ART.dragon({ body: "#241226", dk: "#0d060f", belly: "#33183a", wing: "#1a0c20", horn: "#4a3550", eye: "#ffb347", rune: false });
+  $("#title-cast").innerHTML = ["warrior", "wizard", "healer", "darkwizard", "archmage", "yeon", "hero"].map((k) => `<div>${ART[k]()}</div>`).join("");
+}
+
+/* ---------- 이벤트 ---------- */
+buildSetup();
+show("setup");
+$("#btn-start").addEventListener("click", newGame);
+$("#btn-next").addEventListener("click", () => { sfx.ui(); turn++; beginTurn(); });
+$("#btn-restart").addEventListener("click", () => { sfx.ui(); show("setup"); });
+$("#reward-picks").addEventListener("click", (e) => { const b = e.target.closest("[data-r]"); if (b) pickReward(b.dataset.r); });
+$("#a-attack").addEventListener("click", () => act("attack"));
+$("#a-special").addEventListener("click", () => act("special"));
+$("#a-ult").addEventListener("click", () => act("ult"));
+$("#a-potion").addEventListener("click", () => act("potion"));
+$("#name").addEventListener("keydown", (e) => { if (e.key === "Enter") newGame(); });
+$("#btn-mute").addEventListener("click", () => {
+  sfx.on = !sfx.on; sfx.unlock();
+  $("#btn-mute").textContent = sfx.on ? "🔊 소리" : "🔇 소리"; $("#btn-mute").setAttribute("aria-pressed", String(sfx.on));
+});
+document.addEventListener("keydown", (e) => {
+  if ($("#screen-battle").hidden || e.target.tagName === "INPUT") return;
+  const m = { 1: "attack", 2: "special", 3: "ult", 4: "potion" }[e.key];
+  if (m) act(m);
+});
+["attack", "special", "ult", "potion"].forEach((k) => { $("#i-" + k).innerHTML = ICON[k]; });
+
+})();
+</script>
+
+</body></html>
