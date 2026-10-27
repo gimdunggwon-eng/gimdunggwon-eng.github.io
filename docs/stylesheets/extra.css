@@ -1,0 +1,56 @@
+
+:root {
+  --md-primary-fg-color: #174ea6;
+  --md-primary-fg-color--light: #4285f4;
+  --md-primary-fg-color--dark: #103778;
+  --md-accent-fg-color: #4285f4;
+}
+
+.md-content h1 {
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.home-banner {
+  padding: 24px;
+  margin: 18px 0 26px;
+  border: 1px solid #c8dcff;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #eaf2ff, #f7faff);
+  color: #17365f;
+}
+
+.home-banner strong {
+  font-size: 1.15rem;
+}
+
+.grid.cards > ul > li {
+  border: 1px solid #d6e3f7;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.grid.cards > ul > li:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 22px rgb(30 80 150 / 12%);
+  border-color: #80adf5;
+}
+
+.grid.cards .card {
+  padding: 18px;
+}
+
+.grid.cards > ul > li > hr {
+  border-color: #d6e3f7;
+}
+
+.md-typeset .grid.cards > ul > li > p:first-child {
+  font-size: 1.1rem;
+}
+
+@media (max-width: 600px) {
+  .home-banner {
+    padding: 18px;
+  }
+}
