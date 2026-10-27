@@ -6,10 +6,7 @@
   <p style="margin-top: 28px;">
     <a href="#study" style="display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 9px; text-decoration: none; font-weight: bold;">공부 시작하기 →</a>
 <a href="games/">🎮 게임하기</a>
-   style="display:inline-block; padding:12px 24px;
-   background:#3b82f6; color:white;
-   border-radius:10px; text-decoration:none;">
-   🎮 게임하기
+
 </a>
   </p>
 </div>
