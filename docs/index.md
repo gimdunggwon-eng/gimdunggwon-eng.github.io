@@ -5,7 +5,7 @@
   <p style="color: #cbd5e1; font-size: 1.1em;">공부하고, 만들고, 플레이하는 나만의 공간</p>
   <p style="margin-top: 28px;">
     <a href="#study" style="display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 9px; text-decoration: none; font-weight: bold;">공부 시작하기 →</a>
-<a href="games/">🎮 게임하기</a>
+<a href="games/">🎮 게임하기
 
 </a>
   </p>
