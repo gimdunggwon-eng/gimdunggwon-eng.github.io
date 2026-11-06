@@ -1,14 +1,62 @@
-
-site_name: king dong gwon
+site_name: KING DONG GWON | HISTORY ACADEMY
+site_url: https://gimdunggwon-eng.github.io/
 
 theme:
   name: material
   language: ko
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: slate
+      primary: brown
+      accent: amber
 
 markdown_extensions:
+  - admonition
+  - footnotes
   - attr_list
   - md_in_html
+  - tables
+  - toc:
+      permalink: true
 
-extra_css:
-  - stylesheets/extra.css
+nav:
+  - HOME: index.md
+  - 역사 아카데미:
+      - 연구소 소개: history/index.md
+      - 한국사:
+          - 고대사: history/korean-history/ancient.md
+          - 고려사: history/korean-history/goryeo.md
+          - 조선사: history/korean-history/joseon.md
+          - 근대사: history/korean-history/modern.md
+          - 현대사: history/korean-history/contemporary.md
+      - 독립운동:
+          - 민족 유일당 운동: history/independence-movement/national-movement.md
+          - 신간회: history/independence-movement/singanhoi.md
+          - 대한민국 임시정부: history/independence-movement/provisional-government.md
+          - 한국광복군: history/independence-movement/korean-liberation-army.md
+          - 3·1 운동: history/independence-movement/march-first.md
+          - 제암리 사건: history/independence-movement/jeamri.md
+          - 훈춘 사건: history/independence-movement/hunchun.md
+      - 역사 인물:
+          - 김구: history/historical-figures/kim-gu.md
+          - 이상재: history/historical-figures/lee-sang-jae.md
+          - 조소앙: history/historical-figures/cho-so-ang.md
+      - 사회운동:
+          - 농민운동: history/social-history/peasant-movement.md
+          - 노동운동: history/social-history/labor-movement.md
+      - 역사 연구실:
+          - 사료 분석: history/research-center/source-analysis.md
+          - 역사 연구 방법: history/research-center/historical-method.md
+          - 역사 인식과 해석: history/research-center/historiography.md
+      - 한국사 연표: history/timeline/korean-timeline.md
+      - 연구 보고서: history/reports/index.md
 
+plugins:
+  - search
