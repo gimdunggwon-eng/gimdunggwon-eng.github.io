@@ -31,7 +31,7 @@
 
     웹 개발과 프로그래밍을 공부하는 공간.
 
-    [코딩 기록 보기](docs/projects.md)
+    [코딩 기록 보기](projects.md)
 
 </div>
 
