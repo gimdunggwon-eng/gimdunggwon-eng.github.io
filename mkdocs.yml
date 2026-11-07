@@ -45,10 +45,7 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
-  - pymdownx.details
-  - pymdownx.superfences
-  - pymdownx.tabbed:
-      alternate_style: true
+
 
 nav:
   - HOME: index.md
