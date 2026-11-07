@@ -1,4 +1,4 @@
-```yaml
+
 site_name: KING DONG GWON | HISTORY ACADEMY
 site_url: https://gimdunggwon-eng.github.io/
 
@@ -61,4 +61,3 @@ nav:
 
 plugins:
   - search
-```
