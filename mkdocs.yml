@@ -27,7 +27,8 @@ theme:
       toggle:
         icon: material/weather-sunny
         name: 밝은 모드로 전환
-
+extra_css:
+  - stylesheets/extra.css
 markdown_extensions:
   - admonition
   - footnotes
