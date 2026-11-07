@@ -14,9 +14,19 @@ theme:
     - search.highlight
     - content.code.copy
   palette:
+    - scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: 어두운 모드로 전환
+
     - scheme: slate
-      primary: brown
-      accent: amber
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: 밝은 모드로 전환
 
 markdown_extensions:
   - admonition
