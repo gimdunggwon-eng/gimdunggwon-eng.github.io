@@ -40,6 +40,13 @@ markdown_extensions:
 
 nav:
   - HOME: index.md
+  - 공부 공간:
+      - 학습실 홈: study.md
+      - 한국사: korean-history.md
+      - 세계사: world-history.md
+      - 영어: english.md
+      - 과학: science.md
+      - 수학: math.md
   - 역사 아카데미:
       - 연구소 소개: history/index.md
       - 한국사:
