@@ -14,7 +14,7 @@
 <p><a href="/study/">공부하러 가기</a></p>
 </li>
 <li>
-<p><strong>🏛️ 역사 아카이브</strong></p>
+<p><strong>🏛️ 역사 아카데미</strong></p>
 <p>한국사, 세계사, 역사 인물과 사건을 탐구하는 공간.</p>
 <p><a href="/history/">역사 탐구하기</a></p>
 </li>
