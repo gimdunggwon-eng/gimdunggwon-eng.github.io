@@ -737,6 +737,7 @@ const sfx = (() => {
     zap: () => { noise({ t: 0.18, fc: J(5500), q: 1.4, v: 0.22, curve: 0.5 }); tone({ f: J(1800), f2: J(300), t: 0.2, type: "sawtooth", v: 0.07 }); tone({ f: J(2400), f2: J(500), t: 0.12, type: "square", v: 0.04, d: 0.03 }); },
     beam: () => { tone({ f: J(300), f2: J(900), t: 0.6, type: "sawtooth", v: 0.08 }); noise({ t: 0.6, fc: J(1800), q: 0.7, v: 0.12, curve: 0.4 }); },
     whip: () => { noise({ t: 0.1, fc: J(6500), q: 1.5, v: 0.24, curve: 0.4 }); tone({ f: J(2000), f2: 400, t: 0.08, type: "square", v: 0.05 }); noise({ t: 0.25, fc: J(900), q: 0.5, v: 0.2, d: 0.08 }); },
+    clash: (k) => { tone({ f: 220 + k * 500, f2: 330 + k * 700, t: 0.06, type: "square", v: 0.05 }); },
     roar: () => { tone({ f: 120, f2: 55, t: 0.9, type: "sawtooth", v: 0.2 }); noise({ t: 0.9, fc: 400, q: 0.5, v: 0.22, curve: 0.6 }); },
     heal: () => arp([523, 659, 784, 1047], 0.07, "sine", 0.1),
     buff: () => arp([392, 523, 659], 0.06, "triangle", 0.09),
@@ -2119,6 +2120,7 @@ function skillTag(text, color) {
   anim(d, [{ opacity: 0, transform: "translate(-50%,-60%) scale(.7)" }, { opacity: 1, transform: "translate(-50%,-100%) scale(1.08)", offset: 0.18 }, { opacity: 1, transform: "translate(-50%,-110%) scale(1)", offset: 0.75 }, { opacity: 0, transform: "translate(-50%,-140%) scale(1)" }], { duration: 1000 }).then(() => d.remove());
 }
 function cutIn(name, sub, color) {
+  if (noCut) { noCut = false; return Promise.resolve(); }
   if (RM) return wait(250);
   const wrap = fxEl("position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:60", stage);
   const dim = fxEl("position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(0,0,0,.25),rgba(0,0,0,.82))", wrap);
@@ -2325,6 +2327,153 @@ function hitJuice(kind, color) {
   speedLines(t, color, big ? 30 : 18, big ? 1.1 : 0.75); zoomPunch(t, big ? 1.12 : 1.06, big ? 460 : 300); groundWave(color, big ? 1 : 0.6);
   if (big) { lightRays(t, color); flash(color, 0.5, 300); ultImpact(color); }
 }
+/* ---------- 궁극기 충돌 (연타전) ---------- */
+let noCut = false;
+const CLASH_STYLE = { yeon: "lightning", warrior: "fire", archmage: "fire", hero: "holy", healer: "holy", darkwizard: "dark", wizard: "magic", "orc-captain": "magic", "orc-berserker": "fire", "orc-general": "fire", dragon: "fire" };
+function isUltNext(m) {
+  if (m instanceof RivalBoss) return m.nextMove() === "ult";
+  if (m instanceof UltimateDragon) return m.nextIsBreath();
+  return !!MON_ULT[m.sprite] && m.turns % 4 === 3;
+}
+function clashInfo(m, myCol) {
+  const me = { name: player.names().ul, col: myCol, key: player.key };
+  let en;
+  if (m instanceof RivalBoss) en = { name: m.R.ul, col: m.R.col, key: m.key };
+  else if (m instanceof UltimateDragon) en = { name: "파멸의 헬파이어 브레스", col: "#ff6a3a", key: "dragon" };
+  else en = { name: MON_ULT[m.sprite].name, col: MON_ULT[m.sprite].col, key: m.sprite };
+  me.style = CLASH_STYLE[me.key] || "magic"; en.style = CLASH_STYLE[en.key] || "magic";
+  return { me, en };
+}
+function aiRate(m) {
+  let r = m instanceof RivalBoss ? 8.2 : m instanceof UltimateDragon ? 8.8 : 7;
+  if (mode === "raid") r += raidTier[raidId] * 0.3;
+  if (mode === "tower") r += Math.min(3, towerFloor / 10);
+  return r * rnd(0.92, 1.08);
+}
+function arcFx(a, b, col, parent) {
+  const n = 7, pts = [];
+  for (let i = 0; i <= n; i++) { const t = i / n, j = i && i < n; pts.push([a.x + (b.x - a.x) * t + (j ? rnd(-18, 18) : 0), a.y + (b.y - a.y) * t + (j ? rnd(-18, 18) : 0)]); }
+  const x0 = Math.min(...pts.map((q) => q[0])) - 20, y0 = Math.min(...pts.map((q) => q[1])) - 30, W = Math.max(...pts.map((q) => q[0])) - x0 + 20, H = Math.max(...pts.map((q) => q[1])) - y0 + 30;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"), d = pts.map((q) => `${(q[0] - x0).toFixed(1)},${(q[1] - y0).toFixed(1)}`).join(" ");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.style.cssText = `position:absolute;left:${x0}px;top:${y0}px;width:${W}px;height:${H}px;overflow:visible;pointer-events:none;filter:drop-shadow(0 0 6px ${col})`;
+  svg.innerHTML = `<polyline points="${d}" fill="none" stroke="${col}" stroke-width="5" stroke-linejoin="round"/><polyline points="${d}" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>`;
+  parent.appendChild(svg); anim(svg, [{ opacity: 1 }, { opacity: 0 }], { duration: 170 }).then(() => svg.remove());
+}
+function clashStyleFx(style, col, from, c, parent) {
+  const t = Math.random(), x = from.x + (c.x - from.x) * t, y = from.y + (c.y - from.y) * t;
+  if (style === "fire") burst(x, y, { n: 3, color: [col, "#ffb347", "#ffe27a"], speed: 2.2, size: 5, life: 520, grav: -0.06 });
+  else if (style === "holy") burst(x, y, { n: 3, color: ["#fff", col, "#fff3b0"], speed: 1.6, size: 4, life: 700, grav: -0.03 });
+  else if (style === "dark") burst(x, y, { n: 3, color: [col, "#0a3a1a", "#b6ffcb"], speed: 2, size: 4, life: 600, grav: -0.02 });
+  else if (style === "lightning") arcFx(from, c, col, parent);
+  else burst(x, y, { n: 3, color: [col, "#fff"], speed: 2.4, size: 3, life: 480, grav: 0.02 });
+}
+function ultClash(info, rate) {
+  return new Promise((resolve) => {
+    const { me, en } = info, A = pt("p", 0.84, 0.33), B = pt("m", 0.16, 0.33);
+    const len = Math.hypot(B.x - A.x, B.y - A.y), ang = (Math.atan2(B.y - A.y, B.x - A.x) * 180) / Math.PI;
+    const wrap = fxEl("position:absolute;inset:0;overflow:hidden;z-index:75;pointer-events:none", stage), mk = (css, parent) => fxEl(css, parent || wrap);
+    mk("position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,rgba(0,0,0,.3),rgba(0,0,0,.86))");
+    ["top", "bottom"].forEach((pos) => mk(`position:absolute;left:0;right:0;${pos}:0;height:26px;background:#000`));
+    const title = mk("position:absolute;left:0;right:0;top:34px;text-align:center;color:#fff;font-weight:900;font-size:26px;letter-spacing:.12em;font-style:italic;text-shadow:0 0 14px #ffd36a,2px 2px 0 rgba(0,0,0,.6)");
+    title.textContent = "⚡ ULTIMATE CLASH ⚡";
+    const vs = mk("position:absolute;left:0;right:0;top:72px;text-align:center;color:#fff;font-weight:800;font-size:14px;text-shadow:0 1px 4px #000");
+    vs.innerHTML = `<b style="color:${me.col}">${esc(me.name)}</b> <span style="opacity:.8"> VS </span> <b style="color:${en.col}">${esc(en.name)}</b>`;
+    const beam = (c, rot, o) => mk(`position:absolute;left:${o.x}px;top:${o.y}px;height:20px;margin-top:-10px;transform-origin:0 50%;transform:rotate(${rot}deg);width:0;border-radius:10px;background:linear-gradient(180deg,transparent,${c} 28%,#fff 50%,${c} 72%,transparent);box-shadow:0 0 24px ${c},0 0 60px ${c}`);
+    const bA = beam(me.col, ang, A), bB = beam(en.col, ang + 180, B);
+    const orb = mk(`position:absolute;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;background:radial-gradient(circle,#fff 0,#fff 20%,${me.col} 45%,${en.col} 70%,transparent 72%);box-shadow:0 0 40px #fff,0 0 80px ${me.col},0 0 80px ${en.col}`);
+    const timer = mk("position:absolute;left:12%;right:12%;top:104px;height:6px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden"), tf = mk("position:absolute;left:0;top:0;bottom:0;width:100%;background:#fff", timer);
+    const prompt = mk("position:absolute;left:0;right:0;top:122px;text-align:center;color:#ffe27a;font-weight:900;font-size:17px;text-shadow:0 0 10px #000;letter-spacing:.06em");
+    prompt.textContent = "궁극기가 부딪힙니다!";
+    const cnt = mk("position:absolute;left:12%;right:12%;bottom:80px;display:flex;justify-content:space-between;color:#fff;font-weight:800;font-size:13px;text-shadow:0 1px 3px #000");
+    const gw = mk("position:absolute;left:12%;right:12%;bottom:52px;height:20px;border-radius:12px;background:rgba(255,255,255,.12);overflow:hidden;border:2px solid rgba(255,255,255,.55)");
+    const gA = mk(`position:absolute;left:0;top:0;bottom:0;width:50%;background:${me.col}`, gw), gB = mk(`position:absolute;right:0;top:0;bottom:0;width:50%;background:${en.col}`, gw);
+    const btn = mk("position:absolute;left:50%;bottom:104px;transform:translateX(-50%);padding:9px 30px;border-radius:999px;background:linear-gradient(180deg,#ffd36a,#f0a43a);color:#2a1a00;font-weight:900;font-size:18px;pointer-events:auto;cursor:pointer;user-select:none;touch-action:manipulation;box-shadow:0 4px 0 #a86a10");
+    btn.textContent = "⚡ 연타! (SPACE / ENTER / 클릭)";
+    const T = 4500; let pc = 0, ec = 0, live = false, done = false, posS = 0, target = 0.5, tStart = 0, last = 0, raf = 0;
+    const upd = () => {
+      const c = { x: A.x + (B.x - A.x) * posS, y: A.y + (B.y - A.y) * posS }, ha = 12 + posS * 22, hb = 12 + (1 - posS) * 22;
+      bA.style.width = `${len * posS}px`; bA.style.height = `${ha}px`; bA.style.marginTop = `${-ha / 2}px`;
+      bB.style.width = `${len * (1 - posS)}px`; bB.style.height = `${hb}px`; bB.style.marginTop = `${-hb / 2}px`;
+      orb.style.left = `${c.x}px`; orb.style.top = `${c.y}px`; orb.style.transform = `scale(${0.85 + Math.random() * 0.3})`;
+      gA.style.width = `${posS * 100}%`; gB.style.width = `${(1 - posS) * 100}%`;
+      cnt.innerHTML = `<span style="color:${me.col}">나 ${pc}회</span><span>${live ? ((T - (performance.now() - tStart)) / 1000).toFixed(1) + "초" : ""}</span><span style="color:${en.col}">상대 ${ec}회</span>`;
+      return c;
+    };
+    const press = () => {
+      if (!live || done) return;
+      pc++; target = Math.max(0.06, Math.min(0.94, 0.5 + (pc - ec) * 0.02)); sfx.clash(target);
+      btn.animate([{ transform: "translateX(-50%) scale(.9)" }, { transform: "translateX(-50%) scale(1)" }], { duration: 90 });
+    };
+    const onKey = (e) => { if (e.code === "Space" || e.key === "Enter") { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) press(); } };
+    document.addEventListener("keydown", onKey, true); btn.addEventListener("pointerdown", (e) => { e.preventDefault(); press(); });
+    aura("p", me.col, 1500); aura("m", en.col, 1500); sfx.roar();
+    const loop = (now) => {
+      if (!tStart) tStart = now;
+      const el = now - tStart;
+      if (!live && el < 700) posS = 0.5 * (el / 700);
+      else {
+        if (!live && !done) { live = true; tStart = now; prompt.textContent = "연타!! 연타!! 연타!!"; prompt.animate([{ transform: "scale(1)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }], { duration: 380, iterations: Infinity }); }
+        posS += (target - posS) * 0.25;
+        if (live && !done) {
+          tf.style.width = `${Math.max(0, 100 - ((now - tStart) / T) * 100)}%`;
+          const dt = Math.min(250, now - (last || now)); last = now;
+          let lam = (rate * dt * (1 + 0.25 * Math.sin(now * 0.004))) / 1000;
+          while (lam > 0) { if (Math.random() < Math.min(1, lam)) ec++; lam -= 1; }
+          target = Math.max(0.06, Math.min(0.94, 0.5 + (pc - ec) * 0.02));
+          if (now - tStart > T || target >= 0.94 || target <= 0.06) { done = true; finish(); }
+        }
+      }
+      const c = upd();
+      if (now - (loop.t || 0) > 70) { loop.t = now; burst(c.x, c.y, { n: 6, color: [me.col, en.col, "#fff"], speed: 6, size: 4, life: 360 }); clashStyleFx(me.style, me.col, A, c, wrap); clashStyleFx(en.style, en.col, B, c, wrap); if (Math.random() < 0.3) shake(4, 110); }
+      raf = requestAnimationFrame(loop);
+    };
+    const finish = () => {
+      document.removeEventListener("keydown", onKey, true);
+      const res = pc > ec ? "win" : pc < ec ? "lose" : "draw", wc = res === "win" ? me.col : res === "lose" ? en.col : "#fff";
+      target = res === "win" ? 1 : res === "lose" ? 0 : 0.5; prompt.textContent = res === "win" ? "🏆 WIN!" : res === "lose" ? "💀 LOSE..." : "⚖️ DRAW";
+      btn.remove(); flash(wc, 0.6, 360); shake(14, 360); sfx.boom();
+      setTimeout(() => { cancelAnimationFrame(raf); wrap.remove(); resolve({ res, pc, ec }); }, 650);
+    };
+    raf = requestAnimationFrame(loop);
+  });
+}
+function advanceEnemy(m) {
+  m.ultNow = false;
+  if (m instanceof RivalBoss) m.t++;
+  else if (m instanceof UltimateDragon) { m.turnCount++; m.rageStack += 0.1; }
+}
+function payUltCost() {
+  const snap = { hp: player.hp, maxHp: player.maxHp, atk: player.atk, def: player.def }, qn = Q.length, dummy = new Monster("허공", 999999, 0, 0, 0, "slime", false);
+  try { player.ultimate(dummy); } catch (e) {}
+  Q.length = qn; player.maxHp = snap.maxHp; player._hp = snap.hp; player.atk = snap.atk; player.def = snap.def;
+}
+async function enemyUlt(m) {
+  noCut = true;
+  const apply = () => { const b = player.hp; m.attack(player); const dealt = b - player.hp; if (dealt > 0 && player.alive) player.takeDamage(player.def + Math.floor(dealt * 0.3), { big: true }); };
+  if (m instanceof RivalBoss) await rivalTurn(m, apply);
+  else if (m instanceof UltimateDragon) await dragonBreath(apply);
+  else { m.ultNow = true; await bossUlt(m, apply); }
+  noCut = false;
+}
+async function clashFlow(ch, apply, col) {
+  const m = monster, info = clashInfo(m, col);
+  m.plan();
+  log(`⚡ 궁극기가 정면으로 충돌합니다! [${info.me.name}] VS [${info.en.name}]`, "lvl"); await flush(true);
+  const r = await ultClash(info, aiRate(m));
+  if (r.res === "win") {
+    log(`🏆 연타 승리! (나 ${r.pc}회 vs 상대 ${r.ec}회) 내 궁극기가 상대를 압도합니다! (추가 피해 +50%)`, "lvl"); await flush(true);
+    advanceEnemy(m);
+    const apB = () => { const b = m.hp; hitJuice("ult", col); apply(); const dealt = b - m.hp; if (dealt > 0 && m.alive) m.takeDamage(m.def + Math.floor(dealt * 0.5), { big: true }); };
+    await ch.ultimate(apB);
+  } else if (r.res === "lose") {
+    log(`💀 연타 패배… (나 ${r.pc}회 vs 상대 ${r.ec}회) 내 궁극기가 불발되고 상대의 궁극기가 밀려옵니다! (피해 +30%)`, "bad"); await flush(true);
+    payUltCost(); await enemyUlt(m);
+  } else {
+    log(`⚖️ 연타 무승부! (각 ${r.pc}회) 두 궁극기가 서로 상쇄되었습니다.`, "lvl"); await flush(true);
+    payUltCost(); advanceEnemy(m);
+  }
+}
 async function playerTurn(kind) {
   const ch = CH[player.key], apply = () => {
     if (kind === "attack") player.attack(monster);
@@ -2335,6 +2484,7 @@ async function playerTurn(kind) {
   const col = kind === "ult" && player.key === "archmage" ? "#ff4a4a" : (player.key === "wizard" || player.key === "yeon") && kind === "ult" ? "#ff8a2a" : SKILL_COL[player.key] || "#fff", nm = player.names();
   const dm = !(player.key === "healer" && kind !== "attack");
   const ap = dm && (kind === "attack" || kind === "special" || kind === "ult") ? () => { hitJuice(kind, col); apply(); } : apply;
+  if (kind === "ult" && isUltNext(monster)) { await clashFlow(ch, apply, col); updatePlates(); renderHud(); return true; }
   if (kind === "special") skillTag(nm.sp, col);
   if (kind === "ult") await cutIn(nm.ul, `${player.kind} · 궁극기`, col);
   if (kind === "attack") await ch.attack(ap);
@@ -2363,10 +2513,9 @@ async function act(kind) {
   if (busy || !monster || !monster.alive || !player.alive) return;
   if ((kind === "special" && !player.canSpecial()) || (kind === "ult" && !player.canUltimate()) || (kind === "potion" && potions <= 0)) return;
   sfx.unlock(); busy = true; setControls(); setPill("me");
-  await playerTurn(kind);
+  const clashed = await playerTurn(kind);
   if (!monster.alive) { await victory(); return; }
-  setPill("en"); await wait(350);
-  await monsterTurn();
+  if (!clashed) { setPill("en"); await wait(350); await monsterTurn(); }
   if (!player.alive && player.canRevive && player.canRevive()) await reviveFx();
   if (!player.alive) { await defeat(); return; }
   busy = false; setPill("me"); setControls();
