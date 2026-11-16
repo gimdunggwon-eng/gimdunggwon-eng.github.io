@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#100e1b">
+<title>하드 모드 RPG | 게임 안내</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#100e1b;--surface:#1b1830;--surface2:#272243;--line:#3a3463;--fg:#ece6d6;--muted:#a49dc2;--ember:#f0a43a;--red:#e0533f}
+*{box-sizing:border-box}body{margin:0;padding:24px 16px 48px;background:radial-gradient(ellipse at 50% 0%,#302344 0%,var(--bg) 55%);color:var(--fg);font:15px/1.7 "Noto Sans KR",sans-serif}
+main{max-width:850px;margin:auto;display:grid;gap:16px}.hero,.panel{background:rgba(27,24,48,.94);border:1px solid var(--line);border-radius:16px;padding:22px}
+.hero{text-align:center;padding:38px 22px;background:linear-gradient(145deg,#302344,#171326 70%);border-color:#76572d;box-shadow:0 12px 38px #0005}
+.eyebrow{margin:0 0 8px;color:var(--ember);font-size:12px;font-weight:700;letter-spacing:.2em}
+h1,h2{font-family:"Black Han Sans",sans-serif;font-weight:400;margin:0}h1{font-size:clamp(38px,8vw,62px);line-height:1.15;text-shadow:0 3px 0 #000,0 0 28px #f0a43a55}h2{font-size:25px;margin-bottom:12px}
+.lead{color:#d7d0ee;margin:12px auto 0;max-width:55ch}.tag{display:inline-block;margin-top:18px;padding:4px 12px;border:1px solid #8d6732;border-radius:999px;color:#f5c477;font-size:12px;letter-spacing:.08em}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--ember);width:25%;font-weight:700}tr:last-child td,tr:last-child th{border-bottom:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.card{padding:14px;background:#100e1b;border:1px solid var(--line);border-radius:11px}.card b{display:block;color:#f5c477;margin-bottom:4px}.card p{margin:0;color:var(--muted);font-size:13px}
+ol,ul{margin:8px 0 0;padding-left:22px}li{margin:5px 0}.note{padding:12px 14px;border-left:3px solid var(--ember);background:#29213a;border-radius:7px;color:#d9d1e9;font-size:13px}
+.actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:6px}.btn{display:inline-block;text-decoration:none;text-align:center;padding:13px 24px;border-radius:10px;font-weight:700}.primary{background:var(--ember);color:#2a1a04;box-shadow:0 4px 0 #a86a14}.secondary{border:1px solid var(--line);background:var(--surface2);color:var(--fg)}
+footer{text-align:center;color:#827b9d;font-size:12px;padding-top:4px}
+@media(max-width:520px){.hero,.panel{padding:18px}th{width:31%}td,th{padding:9px 7px}}
+</style>
+</head>
+<body>
+<main>
+<header class="hero">
+<p class="eyebrow">GAME GUIDE · ADVENTURER'S MANUAL</p>
+<h1>HARD MODE RPG</h1>
+<p class="lead">모험을 시작하기 전에 세계와 전투 시스템을 확인하세요.<br>준비된 용사만이 마지막 전투에 도달할 수 있습니다.</p>
+<span class="tag">12 BATTLES · BOSS RAID · INFINITE TOWER</span>
+</header>
+
+<section class="panel">
+<h2>01. 게임 개요</h2>
+<table>
+<tr><th>장르</th><td>턴제 전투 중심의 하드 모드 RPG</td></tr>
+<tr><th>주요 목표</th><td>캐릭터를 성장시키고 장비와 자원을 관리하며 총 12회의 전투를 돌파하세요.</td></tr>
+<tr><th>핵심 자원</th><td>HP · 직업별 자원(마나·분노·신력 등) · 골드 · 힐링 포션 · 경험치</td></tr>
+<tr><th>전투 흐름</th><td>캐릭터 선택 → 전투 → 보상과 성장 → 마을 정비 → 다음 전투</td></tr>
+</table>
+</section>
+
+<section class="panel">
+<h2>02. 직업 선택</h2>
+<div class="grid">
+<div class="card"><b>⚔️ 전사</b><p>높은 체력과 방어력을 바탕으로 싸우며 공격할수록 분노를 쌓습니다.</p></div>
+<div class="card"><b>✨ 마법사</b><p>마나를 모아 강력한 마법 공격과 방어 무시 궁극기를 사용합니다.</p></div>
+<div class="card"><b>💚 힐러</b><p>회복 능력과 공격력 강화 기술을 활용해 전투를 이어갑니다.</p></div>
+<div class="card"><b>☠️ 흑마법사</b><p>저주와 강력한 마법을 사용하며 특별한 부활 능력을 지닙니다.</p></div>
+<div class="card"><b>🔮 대마법사</b><p>마나를 관리하며 강력한 마법과 적 약화 기술을 사용합니다.</p></div>
+<div class="card"><b>🦊 이연 (구미호 신)</b><p>신력을 모아 강력한 기술을 발휘하는 특수 캐릭터입니다.</p></div>
+<div class="card"><b>🛡️ 영웅</b><p>균형 잡힌 능력치를 지니며 공격으로 마나를 회복합니다.</p></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>03. 전투와 성장</h2>
+<ul>
+<li><b>일반 공격:</b> 기본 공격으로 피해를 주고 직업별 자원을 운용합니다.</li>
+<li><b>특수 기술:</b> 마나·분노·신력 등 필요한 자원을 확인한 뒤 사용하세요.</li>
+<li><b>방어:</b> 방어 태세를 활용하면 다음에 받는 피해를 줄일 수 있습니다.</li>
+<li><b>레벨과 경험치:</b> 전투를 통해 경험치를 얻고 레벨을 올려 캐릭터를 성장시키세요.</li>
+<li><b>보상 선택:</b> 전투 사이에 장비 보상을 선택해 능력치를 강화할 수 있습니다.</li>
+</ul>
+</section>
+
+<section class="panel">
+<h2>04. 마을과 추가 콘텐츠</h2>
+<div class="grid">
+<div class="card"><b>🏪 상점</b><p>골드로 힐링 포션을 구입하거나 공격력·방어력·경험치를 강화할 수 있습니다.</p></div>
+<div class="card"><b>🛏️ 여관</b><p>골드 50G를 지불하면 HP와 자원을 완전히 회복합니다.</p></div>
+<div class="card"><b>⚔️ 레이드</b><p>강력한 라이벌 캐릭터에 도전하고 클리어 보상과 전설 장비를 노리세요.</p></div>
+<div class="card"><b>🗼 무한의 탑</b><p>층이 올라갈수록 강해지는 몬스터에 도전합니다. 5층 단위 포션 보너스가 있습니다.</p></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>05. 패배와 재도전</h2>
+<p>전투에서 쓰러지면 마을에서 다시 시작하게 됩니다. 이때 골드 일부를 잃지만 체력과 자원은 회복되므로, 마을에서 장비와 소모품을 정비한 뒤 다시 도전할 수 있습니다.</p>
+<div class="note">전투 전 HP와 자원, 포션 수량을 확인하세요. 무리하게 기술을 연속 사용하기보다 자원 소모와 회복 시점을 함께 관리하는 것이 중요합니다.</div>
+</section>
+
+<section class="panel">
+<h2>06. 모험 시작 전 체크</h2>
+<ol>
+<li>자신에게 맞는 직업을 선택했는가?</li>
+<li>직업별 자원과 기술 효과를 확인했는가?</li>
+<li>HP와 힐링 포션을 관리할 준비가 되었는가?</li>
+<li>전투 보상과 마을 시설을 활용할 계획이 있는가?</li>
+</ol>
+</section>
+
+<div class="actions">
+<a class="btn primary" href="./index.html">⚔️ 게임 시작하기</a>
+<a class="btn secondary" href="/">홈으로 돌아가기</a>
+</div>
+<footer>HARD MODE RPG · ADVENTURER'S GUIDE</footer>
+</main>
+</body>
+</html>
