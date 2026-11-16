@@ -21,7 +21,7 @@
 <li>
 <p><strong>🎮 게임하기</strong></p>
 <p>직접 만든 RPG 게임을 플레이할 수 있어.</p>
-<p><a href="/games/index.html">RPG 게임 실행하기</a></p>
+<p><a href="/games/guide.html">게임 안내 및 시작하기</a></p>
 </li>
 <li>
 <p><strong>💻 코딩 연구실</strong></p>
