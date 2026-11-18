@@ -41,6 +41,8 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-body); f
 .screen { display: flex; flex-direction: column; gap: 16px; }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible, .pick:focus-within, input:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.g-rpg, .g-mini { opacity: 0; } [data-gun="rpg"] .g-pistol, [data-gun="mini"] .g-pistol { opacity: 0; } [data-gun="rpg"] .g-rpg, [data-gun="mini"] .g-mini { opacity: 1; }
+.firing .bar { animation: gspin .07s linear infinite; } @keyframes gspin { to { stroke-dashoffset: -12; } }
 .y-blade { opacity: 0; transition: opacity .06s; } .y-hilt { transition: opacity .06s; } .drawn .y-blade { opacity: 1; } .drawn .y-hilt { opacity: 0; }
 .o { stroke: #0d0a16; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
 .art { display: block; width: 100%; height: auto; overflow: visible; filter: url(#shade) drop-shadow(0 5px 5px rgba(0,0,0,.38)); }
@@ -84,7 +86,7 @@ input[type=text] { background: var(--bg); border: 1px solid var(--line); color: 
 .title-art .tt { position: absolute; left: 18px; right: 18px; top: 16px; z-index: 4; }
 .title-art .ttl-dragon { position: absolute; right: -4%; bottom: 10%; width: 62%; z-index: 1; opacity: .9; }
 .title-art .cast { position: absolute; left: 3%; right: 3%; bottom: 7%; z-index: 3; display: flex; gap: 1%; align-items: flex-end; }
-.title-art .cast > div { width: 13.2%; }
+.title-art .cast > div { width: 11.6%; }
 .title-art .tt .lead { text-shadow: 0 1px 6px #000; color: #d7d0ee; }
 
 /* ---------- 선택 카드 ---------- */
@@ -123,6 +125,7 @@ input[type=text] { background: var(--bg); border: 1px solid var(--line); color: 
 .bg { position: absolute; inset: 0; overflow: hidden; }
 .bg .sky { position: absolute; inset: 0; }
 .bg .cel { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); }
+
 .bg svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .bg .layer { transition: transform 0s; }
 .fog { position: absolute; left: -25%; right: -25%; bottom: 12%; height: 30%; background: radial-gradient(closest-side, rgba(255,255,255,.12), transparent); animation: fog 16s ease-in-out infinite alternate; pointer-events: none; }
@@ -230,6 +233,7 @@ dl.stats-list dd { margin: 0; overflow-wrap: anywhere; }
 .title-art .ttl-dragon .art{transform:scaleX(-1)}
 
 </style>
+
 <div id="app">
 
   <section id="screen-setup" class="screen">
@@ -398,7 +402,8 @@ const ART = {
   healer() {
     return svg("0 0 200 220", `${SH(100, 44)}
 <g class="bob">
- <g class="sway" style="transform-origin:84px 98px"><path class="o" d="M84 98C66 128 62 176 66 200L100 196L104 102Z" fill="#cfe9dc"/></g>
+ <g class="sway" style="transfor
+m-origin:84px 98px"><path class="o" d="M84 98C66 128 62 176 66 200L100 196L104 102Z" fill="#cfe9dc"/></g>
  <path class="o" d="M80 70Q74 112 88 132L102 100Z" fill="#f1d27a"/>
  <path class="o" d="M76 100Q102 88 130 100L142 202Q102 212 62 202Z" fill="#f4f8f5"/>
  <path d="M84 108Q102 100 124 108L128 140Q102 148 82 140Z" fill="#fff" opacity=".6"/>
@@ -418,6 +423,34 @@ const ART = {
    <path class="o" d="M134 34Q142 24 150 30Q158 24 166 34Q158 40 150 44Q142 40 134 34Z" fill="#e8b84a"/>
    <path class="o" d="M150 22l10 14-10 16-10-16z" fill="#79e0b0"/><path d="M146 30l4-4 2 8z" fill="#fff" opacity=".7"/>
    <circle class="o" cx="150" cy="134" r="8" fill="#f6d5b6"/>
+ </g>
+</g>`);
+  },
+
+  gunner() {
+    return svg("0 0 200 220", `${SH(100, 46)}
+<g class="bob">
+ <path class="o" d="M80 100C66 130 62 170 66 192L98 190L104 104Z" fill="#2f3a2a"/>
+ <rect class="o" x="82" y="152" width="18" height="48" rx="7" fill="#2a2f38"/><rect class="o" x="104" y="152" width="18" height="48" rx="7" fill="#2a2f38"/>
+ <path class="o" d="M77 196h26q3 0 3 5v5H74v-5q0-5 3-5z" fill="#14161c"/><path class="o" d="M101 196h26q3 0 3 5v5h-32v-5q0-5 3-5z" fill="#14161c"/>
+ <path class="o" d="M72 100Q102 86 132 100L138 158Q103 170 66 158Z" fill="#46553a"/>
+ <path class="o" d="M82 104L104 96L124 104L128 150Q104 158 78 150Z" fill="#2c3626"/>
+ <rect class="o" x="86" y="128" width="12" height="14" rx="2" fill="#1f271b"/><rect class="o" x="108" y="128" width="12" height="14" rx="2" fill="#1f271b"/>
+ <path d="M82 102L126 152" stroke="#6a4a22" stroke-width="7" stroke-linecap="round"/>
+ <g fill="#ffd24a">${[0, 1, 2, 3, 4, 5].map((i) => `<circle cx="${86 + i * 7.6}" cy="${107 + i * 8.4}" r="2.4"/>`).join("")}</g>
+ <path d="M70 154Q103 166 136 154" stroke="#14161c" stroke-width="7" fill="none" stroke-linecap="round"/><rect x="99" y="157" width="8" height="7" rx="1.5" fill="#d9b25a"/>
+ <path class="o" d="M72 104Q62 128 68 150L82 148Q82 126 88 108Z" fill="#46553a"/><circle class="o" cx="75" cy="154" r="7" fill="#2a2a2a"/>
+ <circle class="o" cx="104" cy="72" r="22" fill="#f2d2b4"/>
+ <path d="M90 86Q104 100 120 86" stroke="#8a6a50" stroke-width="3" fill="none" stroke-linecap="round" opacity=".5"/>
+ <path class="o" d="M80 70Q82 44 104 42Q126 44 128 70Q112 62 80 70Z" fill="#1f241c"/><path class="o" d="M120 66h18l-3 7h-18z" fill="#1f241c"/>
+ <path class="o" d="M104 72h24v8q0 4-4 4h-16q-4 0-4-4z" fill="#111"/><path d="M108 75h7" stroke="#7ab8ff" stroke-width="2" stroke-linecap="round"/>
+ <path d="M110 92q6 3 12 0" stroke="#a5584f" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+ <path class="o" d="M126 110L150 126L143 138L121 124Z" fill="#46553a"/>
+ <g class="weapon" data-base="none" style="transform-origin:150px 134px">
+   <g class="g-pistol"><rect class="o" x="150" y="118" width="34" height="11" rx="2" fill="#3a3f48"/><rect class="o" x="150" y="126" width="12" height="20" rx="3" fill="#2a2d33" transform="rotate(8 156 136)"/><rect x="178" y="119" width="3" height="3" fill="#111"/></g>
+   <g class="g-rpg"><rect class="o" x="86" y="104" width="104" height="14" rx="6" fill="#586a3c"/><path class="o" d="M190 102L214 111L190 120Z" fill="#8a2a1c"/><rect class="o" x="120" y="96" width="18" height="10" rx="2" fill="#2a2d33"/><rect class="o" x="86" y="106" width="8" height="10" fill="#3a3f48"/><rect class="o" x="144" y="118" width="8" height="16" rx="3" fill="#2a2d33"/></g>
+   <g class="g-mini"><rect class="o" x="146" y="120" width="26" height="24" rx="4" fill="#3a3f48"/><rect class="o" x="170" y="122" width="38" height="20" rx="3" fill="#2a2d33"/><path class="bar" d="M172 127H208M172 132H208M172 137H208" stroke="#8a8f99" stroke-width="3" stroke-dasharray="7 5"/><rect class="o" x="150" y="142" width="10" height="16" rx="3" fill="#1f1f1f"/><path d="M146 124Q120 120 100 128Q86 140 90 158" stroke="#d9b25a" stroke-width="6" fill="none" stroke-dasharray="4 3"/></g>
+   <circle class="o" cx="152" cy="134" r="8" fill="#f2d2b4"/>
  </g>
 </g>`);
   },
@@ -484,7 +517,8 @@ const ART = {
  <g class="sway" style="transform-origin:86px 100px"><path class="o" d="M86 100C66 128 58 168 62 192L100 190L108 104Z" fill="#101016"/></g>
  <rect class="o" x="82" y="154" width="18" height="46" rx="7" fill="#1d1d28"/><rect class="o" x="104" y="154" width="18" height="46" rx="7" fill="#1d1d28"/>
  <path class="o" d="M77 196h26q3 0 3 5v5H74v-5q0-5 3-5z" fill="#0b0b11"/><path class="o" d="M101 196h26q3 0 3 5v5h-32v-5q0-5 3-5z" fill="#0b0b11"/>
- <path class="o" d="M72 100Q102 86 132 100L138 158Q103 170 66 158Z" fill="#17171f"/>
+ <path class="o" d="M72
+ 100Q102 86 132 100L138 158Q103 170 66 158Z" fill="#17171f"/>
  <path d="M94 98L104 146L114 98Z" fill="#0b0b11"/><path d="M102 102h5l2 34l-4.5 5l-4.5-5z" fill="#34344a"/>
  <path class="o" d="M66 154h72l6 24H60z" fill="#17171f"/>
  <path d="M90 100L102 146L84 152L76 112Z" fill="#23232e"/><path d="M118 100L106 146L124 152L132 112Z" fill="#23232e"/>
@@ -592,7 +626,8 @@ const ART = {
  <path d="M70 112Q104 100 138 112L140 134Q104 142 68 134Z" fill="#fff" opacity=".1"/>
  <path d="M84 140Q104 148 124 140M86 154Q104 162 122 154" stroke="${dk}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
     if (v === "base") s += `<path d="M64 108L142 172" stroke="#3a2417" stroke-width="9" stroke-linecap="round"/><path class="o" d="M70 160h68l8 32H62z" fill="#6b4a2c"/>`;
-    if (v === "captain") s += `<path class="o" d="M62 108Q104 92 146 108L150 160Q104 174 58 160Z" fill="#8a94a6"/><path d="M72 114Q104 104 136 114L138 134Q104 142 70 134Z" fill="#dfe6f2" opacity=".35"/><circle cx="76" cy="124" r="3" fill="#3a4152"/><circle cx="132" cy="124" r="3" fill="#3a4152"/><path class="o" d="M70 160h68l8 32H62z" fill="#6b4a2c"/>`;
+    if (v === "captain") s += `<path class="o" d="M62 108Q104 92 146 108L150 160Q104 174 58 160Z" fill="#8a94a6"/><path d="M72 114Q104 104 136 114L138 134Q104 142 70 134Z" fill="#dfe6f2" opacity=".35"/><circle cx="76" cy="124" r="3" fill="#3a4152"/>
+<circle cx="132" cy="124" r="3" fill="#3a4152"/><path class="o" d="M70 160h68l8 32H62z" fill="#6b4a2c"/>`;
     if (v === "berserker") s += `<path d="M74 118l24 14M78 134l24 14M122 116l-20 16" stroke="#c4202a" stroke-width="5" stroke-linecap="round"/><path d="M118 142l10 10M112 148l10 10" stroke="#f3d9c0" stroke-width="2" opacity=".8" stroke-linecap="round"/><path class="o" d="M70 160h68l8 32H62z" fill="#6b1f24"/><circle class="o" cx="104" cy="170" r="7" fill="#f4efe0"/>`;
     if (v === "general") s += `<path class="o" d="M60 108Q104 90 148 108L154 164Q104 180 54 164Z" fill="#2c2a36"/><path d="M70 118Q104 106 138 118M72 140Q104 150 136 140" stroke="#e8b84a" stroke-width="3" fill="none"/><circle class="o" cx="104" cy="132" r="10" fill="#e8b84a"/><path class="o" d="M70 160h68l8 32H62z" fill="#4a0c14"/>`;
     // back arm / shield
@@ -667,7 +702,8 @@ const ICON = {
 
 /* ---------- 유틸 ---------- */
 const $ = (s) => document.querySelector(s);
-let RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let RM = window.matchMedia("(prefers-reduced-motion: 
+reduce)").matches;
 const wait = (ms) => new Promise((r) => setTimeout(r, RM ? ms * 0.4 : ms));
 const rnd = (a, b) => a + Math.random() * (b - a);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -737,6 +773,13 @@ const sfx = (() => {
     zap: () => { noise({ t: 0.18, fc: J(5500), q: 1.4, v: 0.22, curve: 0.5 }); tone({ f: J(1800), f2: J(300), t: 0.2, type: "sawtooth", v: 0.07 }); tone({ f: J(2400), f2: J(500), t: 0.12, type: "square", v: 0.04, d: 0.03 }); },
     beam: () => { tone({ f: J(300), f2: J(900), t: 0.6, type: "sawtooth", v: 0.08 }); noise({ t: 0.6, fc: J(1800), q: 0.7, v: 0.12, curve: 0.4 }); },
     whip: () => { noise({ t: 0.1, fc: J(6500), q: 1.5, v: 0.24, curve: 0.4 }); tone({ f: J(2000), f2: 400, t: 0.08, type: "square", v: 0.05 }); noise({ t: 0.25, fc: J(900), q: 0.5, v: 0.2, d: 0.08 }); },
+    shot: pick(
+      () => { noise({ t: 0.09, fc: J(2600), q: 0.8, v: 0.34 }); tone({ f: J(220), f2: 60, t: 0.1, type: "square", v: 0.16 }); },
+      () => { noise({ t: 0.12, fc: J(1800), q: 0.6, v: 0.38 }); tone({ f: J(160), f2: 50, t: 0.14, type: "sawtooth", v: 0.14 }); },
+      () => { noise({ t: 0.07, fc: J(3400), q: 1, v: 0.32 }); noise({ t: 0.2, fc: J(500), q: 0.5, v: 0.14, d: 0.03 }); tone({ f: J(300), f2: 80, t: 0.08, type: "square", v: 0.12 }); }),
+    rocket: () => { noise({ t: 0.5, fc: J(1500), q: 0.5, v: 0.3, curve: 0.5 }); tone({ f: J(120), f2: J(500), t: 0.5, type: "sawtooth", v: 0.1 }); },
+    mg: () => { noise({ t: 0.04, fc: J(3000), q: 1.2, v: 0.2 }); tone({ f: J(180), f2: 90, t: 0.05, type: "square", v: 0.08 }); },
+    mgspin: () => { tone({ f: 80, f2: 420, t: 0.55, type: "sawtooth", v: 0.07 }); },
     clash: (k) => { tone({ f: 220 + k * 500, f2: 330 + k * 700, t: 0.06, type: "square", v: 0.05 }); },
     roar: () => { tone({ f: 120, f2: 55, t: 0.9, type: "sawtooth", v: 0.2 }); noise({ t: 0.9, fc: 400, q: 0.5, v: 0.22, curve: 0.6 }); },
     heal: () => arp([523, 659, 784, 1047], 0.07, "sine", 0.1),
@@ -794,7 +837,8 @@ function tick(t) {
     ctx2.globalCompositeOperation = "lighter";
     // ambient
     if (ambient && !RM) {
-      for (const a of A) {
+      for (const a o
+f A) {
         a.ph += 0.03 * k; a.x += (a.vx + (ambient.rise ? Math.sin(a.ph) * 0.3 : 0)) * k; a.y += a.vy * k;
         if (a.y < -12 || a.y > ch + 14 || a.x < -10 || a.x > cw + 10) Object.assign(a, spawnAmb(false));
         const al = ambient.rise ? 0.55 : 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(a.ph * 1.6));
@@ -925,7 +969,8 @@ function confetti() {
 function rng(seed) { return function () { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const THEMES = [
   { name: "달빛 숲", top: "#08121f", bot: "#25525c", cel: "#eaf4ff", cx: 0.76, cy: 0.2, cr: 30, glow: "rgba(170,215,255,.4)", far: "#143a45", mid: "#0f2d36", near: "#07161c", ground: "#0b1d1e", edge: "#3b8a68", kind: "pine", stars: 46, amb: { c: "#d6ff8a", n: 28, rise: false }, banner: "#9fe8c4" },
-  { name: "고대 유적", top: "#150e2d", bot: "#4a3478", cel: "#f1e4ff", cx: 0.22, cy: 0.22, cr: 26, glow: "rgba(200,170,255,.4)", far: "#2d2255", mid: "#211a46", near: "#120d29", ground: "#17112e", edge: "#8a6ad8", kind: "pillar", stars: 36, amb: { c: "#b79cff", n: 24, rise: true }, banner: "#c6b0ff" },
+  { name: "고대 유적", top: "#150e2d", bot: "#4a3478", cel: "#f1e4ff", cx: 0.22, cy: 0.22, cr: 26, glow: "rgba(200,170,255,.4)", far: "#2d2255", mid: "#211a46", near: "#120d29", ground: "#17112e", edge: "#8a6ad8", kind: "pillar", stars: 36, amb: { c: "#b79cff", n: 24, rise: true }, ban
+ner: "#c6b0ff" },
   { name: "오크 요새", top: "#260c10", bot: "#74291f", cel: "#ff9a52", cx: 0.5, cy: 0.34, cr: 56, glow: "rgba(255,120,60,.45)", far: "#3e171a", mid: "#2d1013", near: "#190809", ground: "#1f0d0d", edge: "#c8583a", kind: "spike", stars: 0, amb: { c: "#ff9a4a", n: 34, rise: true }, banner: "#ffab70" },
   { name: "용의 둥지", top: "#170404", bot: "#85200f", cel: "#ffb869", cx: 0.5, cy: 0.42, cr: 78, glow: "rgba(255,110,40,.5)", far: "#2c0a08", mid: "#1f0705", near: "#0e0303", ground: "#1b0805", edge: "#ff6a28", kind: "stalag", stars: 0, lava: true, amb: { c: "#ff7a2a", n: 52, rise: true }, banner: "#ff8a5a" },
 ];
@@ -974,6 +1019,7 @@ let totalCount = 0, monsterCount = 0;
 
 /* ---------- 캐릭터 클래스 (Python 원본 로직) ---------- */
 const GROWTH = {
+  gunner: { hp: 32, atk: 8, def: 4 },
   archmage: { hp: 32, atk: 8, def: 4 },
   warrior: { hp: 40, atk: 7, def: 5 },
   wizard: { hp: 30, atk: 9, def: 3 },
@@ -1072,8 +1118,30 @@ class Healer extends Character {
     this.mana -= 50; this.heal(this.maxHp); this.atk += 15;
     log(`✨ HP가 완전히 회복되고, 공격력이 +15 증가합니다! (현재 HP: ${this.hp} | 공격력: ${this.atk})`, "good");
   }
-  resource() { return { label: "마나", v: this.mana, max: 80, cls: "mana" }; }
+  reso
+urce() { return { label: "마나", v: this.mana, max: 80, cls: "mana" }; }
   names() { return { sp: "치유", spSub: "마나 30 · HP +40", ul: "신의 은총", ulSub: "마나 50 · HP 완쾌, 공격 +15", atkSub: "빛의 화살 · 마나 +15" }; }
+}
+class Gunner extends Character {
+  constructor(n) { super(n, 120, 36, 11); this.ammo = 60; this.kind = "총잡이"; this.key = "gunner"; }
+  reload(n) { const b = this.ammo; this.ammo = Math.min(100, this.ammo + n); log(`🔄 탄약 장전! +${this.ammo - b} (현재 탄약: ${this.ammo}/100)`, "good"); }
+  attack(o) {
+    log(`🔫 ${this.name}이(가) ${o.name}에게 [권총 속사]! 탕! 탕!`, "act");
+    o.takeDamage(this.atk); this.reload(20);
+  }
+  canSpecial() { return this.ammo >= 40; }
+  special(o) {
+    log(`🚀 ${this.name}의 [RPG 발사]!! 로켓이 날아갑니다!`, "act");
+    this.ammo -= 40; o.takeDamage(Math.floor(this.atk * 3.6), { big: true });
+  }
+  canUltimate() { return this.ammo >= 70; }
+  ultimate(o) {
+    log(`🔫🔥 ${this.name}의 궁극기! [미니건 난사]!! 탄환의 폭풍이 몰아칩니다! 🔥🔫`, "act");
+    this.ammo -= 70; log("💥 관통탄이 방어를 무시하고 연속으로 꽂힙니다! (6연타, 방어 무시)", "good");
+    for (let i = 0; i < 6; i++) { if (!o.alive) break; o.takeDamage(Math.floor(this.atk * 1.6) + o.def, { big: true }); }
+  }
+  resource() { return { label: "탄약 🔫", v: this.ammo, max: 100, cls: "rage" }; }
+  names() { return { sp: "RPG 발사", spSub: "탄약 40 · ×3.6 폭발", ul: "미니건 난사", ulSub: "탄약 70 · 6연타 관통 · 총 ×9.6", atkSub: "권총 · 탄약 +20" }; }
 }
 class Archmage extends Character {
   constructor(n) { super(n, 130, 34, 12); this.mana = 120; this.ward = 0; this.kind = "대마법사"; this.key = "archmage"; }
@@ -1206,6 +1274,7 @@ const MON_AI = {
   "orc-berserker": { heal: { hp: 0.6, pct: 0.2, cd: 3 } },
   "orc-general": { heal: { hp: 0.7, pct: 0.2, cd: 3 }, guard: { chance: 0.3, red: 0.55 } },
   dragon: { heal: { hp: 0.5, pct: 0.12, cd: 4, max: 3 }, dodge: 0.3 },
+  gunner: { guard: { chance: 0.25, red: 0.5 }, dodge: 0.2 },
   archmage: { heal: { hp: 0.5, pct: 0.15, cd: 3, max: 2 }, guard: { chance: 0.25, red: 0.5 } },
   warrior: { guard: { chance: 0.3, red: 0.5 } },
   wizard: { heal: { hp: 0.5, pct: 0.12, cd: 4, max: 2 }, dodge: 0.2 },
@@ -1225,7 +1294,8 @@ class Monster extends Character {
     const pool = list.slice(0, Math.min(difficulty, list.length));
     return new Monster(...pool[Math.floor(Math.random() * pool.length)]);
   }
-  minHit(p) { return Math.floor(p.maxHp * (this.boss ? 0.03 : 0.015)); }
+  minHit(p) { return Math.floor(p.maxHp * (t
+his.boss ? 0.03 : 0.015)); }
   attack(o) {
     if (this.ultNow) {
       this.ultNow = false; const U = MON_ULT[this.sprite], raw = Math.floor(this.atk * 2.2 * (1 + Math.max(0, this.turns - 6) * 0.1));
@@ -1330,6 +1400,7 @@ const RIVAL = {
   yeon: { kind: "구미호 신", col: "#6ec8ff", at: "발도", sp: "여우구슬", ul: "천뢰염참", sword: true },
   hero: { kind: "영웅", col: "#ffd36a", at: "성검 일격", sp: "영웅의 일격", ul: "성검의 심판", sword: true },
   archmage: { kind: "대마법사", col: "#ffb347", at: "엘더 완드 광선", sp: "불꽃의 채찍", ul: "엑스펠리아르무스" },
+  gunner: { kind: "총잡이", col: "#ffd24a", at: "권총 속사", sp: "RPG 발사", ul: "미니건 난사" },
 };
 let rivalKey = "darkwizard";
 const rivalName = () => `라이벌 ${RIVAL[rivalKey].kind}`;
@@ -1391,7 +1462,8 @@ async function weaponTo(side, tf, ms) {
   const a = w.animate([{ transform: cur }, { transform: tf }], { duration: RM ? ms * 0.4 : ms, easing: "ease-out", fill: "forwards" });
   await a.finished.catch(() => {}); w.style.transform = tf; a.cancel();
 }
-const weaponBase = (side, ms) => { const w = weaponEl(side); return w ? weaponTo(side, w.dataset.base || "none", ms) : Promise.resolve(); };
+const weaponBase = (side, ms) => { const w = weaponEl(side); return w ? weaponTo(side, w.dataset.base || "none", ms) 
+: Promise.resolve(); };
 const SW = {
   chop: { wind: "rotate(-75deg)", hit: "rotate(62deg)" },
   stab: { wind: "translate(-12px,2px) rotate(-5deg)", hit: "translate(28px,-4px) rotate(18deg)" },
@@ -1546,7 +1618,8 @@ const CH = {
     },
     async special(apply) {
       await weaponTo("p", "rotate(-12deg)", 200);
-      const me = pt("p", 0.5, 0.55); ringFx(me.x, me.y, "#7dffb0", 150, 640); sparkles("p", ["#7dffb0", "#d8ffe8", "#fff"], 800); sfx.heal();
+      const me = pt("p", 0.5, 0.55); ringFx(me.x, me.y, "#7dffb0", 150, 640); sparkl
+es("p", ["#7dffb0", "#d8ffe8", "#fff"], 800); sfx.heal();
       await wait(380); apply(); await flush(); await wait(250); await weaponBase("p", 200);
     },
     async ultimate(apply) {
@@ -1562,6 +1635,47 @@ const CH = {
       await wait(320); apply(); await flush();
       sparkles("p", ["#ffe27a", "#fff", "#7dffb0"], 1100);
       await wait(700); await weaponBase("p", 200);
+    },
+  },
+  gunner: {
+    async attack(apply) {
+      setGun("pistol"); const to = target("p");
+      for (let k = 0; k < 2; k++) {
+        const m = pt("p", 0.93, 0.56); sfx.shot(); muzzleFx(m); casing(m);
+        tracerFx(m, { x: to.x + rnd(-10, 10), y: to.y + rnd(-14, 14) }, "#ffe27a");
+        await weaponTo("p", "rotate(-9deg)", 55); weaponTo("p", "none", 70); await wait(k ? 120 : 100);
+      }
+      burst(to.x, to.y, { n: 16, color: ["#ffe27a", "#fff", "#ff9a2a"], speed: 5, life: 280 });
+      apply(); await flush(); await weaponBase("p", 150);
+    },
+    async special(apply) {
+      setGun("rpg");
+      await Promise.all([weaponTo("p", "rotate(-10deg)", 260), moveTo("p", -6, 0, 200, "ease-out")]);
+      await wait(260);
+      const mz = pt("p", 1.07, 0.5), rear = pt("p", 0.42, 0.5), to = target("p");
+      sfx.rocket(); burst(rear.x, rear.y, { n: 36, color: ["#fff", "#ffb347", "#bbb"], speed: 7, life: 640, angle: Math.PI, spread: 1.3 });
+      muzzleFx(mz); shake(8, 300); await weaponTo("p", "rotate(-17deg)", 70);
+      await rocketFx(mz, to, 520);
+      explosionFx(to.x, to.y); ringFx(to.x, feet("m").y - 10, "#ff9a2a", 240, 640); flash("#ff8a2a", 0.55, 380); shake(20, 560); sfx.boom();
+      apply(); await flush();
+      moveTo("m", 46, -14, 180, "ease-out").then(() => moveTo("m", 0, 0, 360, "ease-in-out"));
+      await wait(320); await Promise.all([moveTo("p", 0, 0, 240, "ease-in-out"), weaponBase("p", 240)]); setGun("pistol");
+    },
+    async ultimate(apply) {
+      setGun("mini"); aura("p", "#ffd24a", 900); sfx.roar();
+      await weaponTo("p", "rotate(-4deg)", 240);
+      const gf = F.p.flash, to = target("p"); gf.classList.add("firing"); sfx.mgspin();
+      await wait(520);
+      let n = 0;
+      const iv = setInterval(() => {
+        const m = pt("p", 1.04, 0.6); n++;
+        muzzleFx(m, true); casing(m); tracerFx(m, { x: to.x + rnd(-26, 26), y: to.y + rnd(-34, 30) }, "#ffe27a");
+        burst(to.x + rnd(-28, 28), to.y + rnd(-34, 30), { n: 4, color: ["#ffe27a", "#fff", "#ff9a2a"], speed: 5, life: 240 });
+        if (n % 2 === 0) shake(3, 90); sfx.mg();
+      }, 45);
+      await wait(900); apply(); await flush(); await wait(700);
+      clearInterval(iv); gf.classList.remove("firing");
+      await wait(200); await weaponBase("p", 240); setGun("pistol");
     },
   },
   archmage: {
@@ -1673,7 +1787,8 @@ const CH = {
       await wait(330);
       const wEl = weaponEl("p"); wEl.style.filter = "drop-shadow(0 0 7px #ff7a1a) drop-shadow(0 0 16px #ff4a0a)";
       sfx.fire(); ringFx(tip.x, tip.y, "#ff7a1a", 120, 520);
-      const flame = setInterval(() => { for (const u of [0.25, 0.5, 0.75, 1]) { const q = bladePt(u); burst(q.x, q.y, { n: 3, color: ["#ff4a0a", "#ff9a2a", "#ffe27a"], speed: 2, size: 5, life: 480, grav: -0.05 }); } }, 40);
+      const flame = setInterval(() => { for (const u of [0.25, 0.5, 0.75, 1]) { const q = bladePt(u); burst(q.x, q.y, { n: 3, color: ["#ff4a0a", "#ff9a2a", "#ffe27
+a"], speed: 2, size: 5, life: 480, grav: -0.05 }); } }, 40);
       await wait(560);
       const dx = reach("p", 0.25);
       await Promise.all([moveTo("p", dx, 6, 180, "cubic-bezier(.5,0,1,.5)"), weaponTo("p", "rotate(86deg)", 180)]);
@@ -1776,6 +1891,10 @@ async function rivalTurn(m, apply) {
     boltFx(to.x, to.y, { thin: true }); await wait(320); boltFx(to.x, to.y);
     burst(to.x, to.y, { n: 100, color: ["#fff", "#a8e4ff", "#ffe66a"], speed: 10, size: 5, life: 800 });
     flash("#fff", 0.9, 360); shake(22, 600); sfx.boom(); apply(); await flush();
+  } else if (m.key === "gunner") {
+    const mz = pt("m", -0.04, 0.6); let n = 0;
+    const iv = setInterval(() => { n++; muzzleFx(mz, true); casing(mz); tracerFx(mz, { x: to.x + rnd(-20, 20), y: to.y + rnd(-30, 30) }, col); if (n % 2 === 0) shake(3, 90); sfx.mg(); }, 45);
+    await wait(1000); apply(); await flush(); await wait(500); clearInterval(iv);
   } else if (m.key === "archmage") {
     flash("#1a0202", 0.55, 1000); await charge(from, "#ff3a3a", 520); sfx.fire();
     const bm = beamFx(from, to, "#ff3a3a", 760); await wait(280);
@@ -1824,7 +1943,8 @@ async function monsterTurn() {
   }
 }
 async function dragonClaw(apply) {
-  await Promise.all([moveTo("m", 12, -26, 240, "ease-out"), anim(F.m.flash, [{ transform: "none" }, { transform: "scale(1.05)" }], { duration: 240, fill: "forwards" })]);
+  await Promise.all([move
+To("m", 12, -26, 240, "ease-out"), anim(F.m.flash, [{ transform: "none" }, { transform: "scale(1.05)" }], { duration: 240, fill: "forwards" })]);
   F.m.flash.getAnimations().forEach((a) => a.cancel());
   dust("m"); sfx.roar();
   const dx = reach("m", 0.16);
@@ -1992,8 +2112,9 @@ function setControls() {
   const live = !busy && monster && monster.alive && player.alive, n = player.names();
   $("#a-attack-sub").textContent = n.atkSub;
   $("#a-special-name").textContent = n.sp; $("#a-special-sub").textContent = n.spSub;
-  $("#a-ult-name").textContent = n.ul; $("#a-ult-sub").textContent = n.ulSub;
-  $("#a-potion-sub").textContent = `HP +300 · ${potions}개`;
+  $("#a-u
+lt-name").textContent = n.ul; $("#a-ult-sub").textContent = n.ulSub;
+  $("#a-potion-sub").textContent = `HP +${potionHeal()} · ${potions}개`;
   $("#a-attack").disabled = !live;
   $("#a-special").disabled = !live || !player.canSpecial();
   $("#a-ult").disabled = !live || !player.canUltimate();
@@ -2025,7 +2146,7 @@ async function newGame() {
   sfx.unlock(); sfx.ui();
   const name = ($("#name").value || "").trim() || "용사";
   const job = document.querySelector("input[name=job]:checked").value;
-  const Cls = { warrior: Warrior, wizard: Wizard, healer: Healer, darkwizard: DarkWizard, archmage: Archmage, yeon: Yeon, hero: Hero }[job];
+  const Cls = { warrior: Warrior, wizard: Wizard, healer: Healer, darkwizard: DarkWizard, gunner: Gunner, archmage: Archmage, yeon: Yeon, hero: Hero }[job];
   totalCount = 0; monsterCount = 0; Q.length = 0;
   player = new Cls(name); monster = null;
   { const ks = Object.keys(RIVAL).filter((k) => k !== player.key); rivalKey = { wizard: "darkwizard", warrior: "hero" }[player.key] || ks[Math.floor(Math.random() * ks.length)]; } areaIdx = -1; PL.m = {};
@@ -2110,7 +2231,7 @@ async function spawn(afterReward) {
   busy = false; setPill("me"); setControls();
 }
 
-const SKILL_COL = { archmage: "#ffb347", warrior: "#ff8a3a", wizard: "#ff5a4a", healer: "#7dffb0", darkwizard: "#5dff8a", yeon: "#6ec8ff", hero: "#ffd36a" };
+const SKILL_COL = { gunner: "#ffd24a", archmage: "#ffb347", warrior: "#ff8a3a", wizard: "#ff5a4a", healer: "#7dffb0", darkwizard: "#5dff8a", yeon: "#6ec8ff", hero: "#ffd36a" };
 function fxEl(css, parent) { const d = document.createElement("div"); d.style.cssText = css; (parent || fxl).appendChild(d); return d; }
 function skillTag(text, color) {
   if (RM) return;
@@ -2128,7 +2249,8 @@ function cutIn(name, sub, color) {
   fxEl("position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.55) 0 2px,transparent 2px 38px);opacity:.45", band);
   const txt = fxEl(`position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-shadow:0 0 14px ${color},3px 3px 0 rgba(0,0,0,.55);font-weight:900;font-style:italic;font-size:34px;letter-spacing:.08em;line-height:1`, band);
   txt.innerHTML = `<span>${name}</span><span style="font-size:12px;letter-spacing:.3em;opacity:.9;margin-top:7px">${sub}</span>`;
-  ["top", "bottom"].forEach((pos) => { const bar = fxEl(`position:absolute;left:0;right:0;${pos}:0;height:0;background:#000;z-index:58;pointer-events:none`, stage); anim(bar, [{ height: "0px" }, { height: "26px", offset: 0.12 }, { height: "26px", offset: 0.86 }, { height: "0px" }], { duration: 3400, easing: "ease-out" }).then(() => bar.remove()); });
+  ["top", "bottom"].forEach((pos) => { const bar = fxEl(`position:absolute;left:0;right:0;${pos}:0;height:0;background:#000;z-index:58;pointer-eve
+nts:none`, stage); anim(bar, [{ height: "0px" }, { height: "26px", offset: 0.12 }, { height: "26px", offset: 0.86 }, { height: "0px" }], { duration: 3400, easing: "ease-out" }).then(() => bar.remove()); });
   flash(color, 0.35, 300);
   anim(dim, [{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], { duration: 900 });
   anim(band, [{ transform: "rotate(-5deg) translateX(-100%)" }, { transform: "rotate(-5deg) translateX(0)", offset: 0.22, easing: "ease-out" }, { transform: "rotate(-5deg) translateX(3%)", offset: 0.78 }, { transform: "rotate(-5deg) translateX(100%)" }], { duration: 900 });
@@ -2194,10 +2316,28 @@ function phoenixFx(a, b) {
   const iv = setInterval(() => { const r = svg.getBoundingClientRect(), bb = fxl.getBoundingClientRect(); burst(r.x - bb.x + r.width / 2, r.y - bb.y + r.height / 2, { n: 5, color: ["#ff4a0a", "#ff9a2a", "#ffe27a"], speed: 2.5, size: 5, life: 520, grav: -0.04 }); }, 40);
   return anim(svg, [{ opacity: 0, transform: T(0, 0, -10, 0.4) }, { opacity: 1, transform: T(dx * 0.3, dy * 0.3 - 150, -22, 0.9), offset: 0.35 }, { opacity: 1, transform: T(dx * 0.75, dy * 0.75 - 110, 12, 1.4), offset: 0.7 }, { opacity: 0.95, transform: T(dx, dy, 28, 1.8) }], { duration: 900, easing: "ease-in" }).then(() => { clearInterval(iv); svg.remove(); });
 }
+const setGun = (k) => { F.p.flash.dataset.gun = k; };
+function muzzleFx(p, small) {
+  burst(p.x, p.y, { n: small ? 5 : 9, color: ["#fff", "#ffe27a", "#ff9a2a"], speed: small ? 4 : 6, size: small ? 3 : 4, life: 150 });
+}
+function tracerFx(a, b, color) {
+  if (RM) return;
+  const len = Math.hypot(b.x - a.x, b.y - a.y), ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+  const d = fxEl(`position:absolute;left:${a.x}px;top:${a.y}px;width:${len}px;height:3px;margin-top:-1.5px;transform-origin:0 50%;transform:rotate(${ang}deg);background:linear-gradient(90deg,rgba(255,255,255,0),${color} 40%,#fff);box-shadow:0 0 8px ${color};pointer-events:none;z-index:27;opacity:0`);
+  anim(d, [{ opacity: 1, clipPath: "inset(0 100% 0 0)" }, { opacity: 1, clipPath: "inset(0 0 0 0)", offset: 0.45 }, { opacity: 0 }], { duration: 150 }).then(() => d.remove());
+}
+function casing(p) { burst(p.x - 10, p.y + 6, { n: 1, color: ["#ffd36a"], speed: 3, size: 3, life: 700, grav: 0.16, angle: -Math.PI / 2.4, spread: 0.8 }); }
+function rocketFx(a, b, ms) {
+  const dx = b.x - a.x, dy = b.y - a.y, ang = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const d = fxEl(`position:absolute;left:${a.x}px;top:${a.y}px;width:36px;height:11px;margin:-5px 0 0 -18px;border-radius:5px 7px 7px 5px;background:linear-gradient(90deg,#586a3c,#8a8f99 60%,#c0392b);box-shadow:0 0 10px #ff9a2a;pointer-events:none;z-index:29;opacity:0`);
+  const iv = setInterval(() => { const r = d.getBoundingClientRect(), bb = fxl.getBoundingClientRect(); burst(r.x - bb.x + r.width / 2, r.y - bb.y + r.height / 2, { n: 4, color: ["#cfcfcf", "#ff9a2a", "#ffe27a"], speed: 1.6, size: 5, life: 520, grav: -0.02 }); }, 30);
+  return anim(d, [{ opacity: 1, transform: `translate(0,0) rotate(${ang}deg)` }, { opacity: 1, transform: `translate(${dx}px,${dy}px) rotate(${ang}deg)` }], { duration: ms, easing: "ease-in" }).then(() => { clearInterval(iv); d.remove(); });
+}
 function bladePt(t) {
   const g = F.p.flash.querySelector(".y-blade"), svg = g && g.ownerSVGElement;
   if (!g) return pt("p", 0.8, 0.1);
-  const m = g.getScreenCTM(), P = svg.createSVGPoint(), b = fxl.getBoundingClientRect();
+  const m 
+= g.getScreenCTM(), P = svg.createSVGPoint(), b = fxl.getBoundingClientRect();
   P.x = 148; P.y = 126 - t * 100;
   const q = P.matrixTransform(m);
   return { x: q.x - b.x, y: q.y - b.y };
@@ -2315,7 +2455,8 @@ function explosionFx(x, y) {
   if (RM) return;
   const ball = fxEl(`position:absolute;left:${x}px;top:${y}px;width:260px;height:260px;margin:-130px 0 0 -130px;border-radius:50%;background:radial-gradient(circle,#fff 0,#ffe27a 22%,#ff8a2a 50%,rgba(120,30,10,.75) 72%,transparent 74%);box-shadow:0 0 80px #ff8a2a;pointer-events:none;opacity:0;z-index:28`);
   anim(ball, [{ opacity: 1, transform: "scale(.2)" }, { opacity: 1, transform: "scale(1.1)", offset: 0.35 }, { opacity: 0, transform: "scale(1.7)" }], { duration: 760, easing: "ease-out" }).then(() => ball.remove());
-  const smoke = fxEl(`position:absolute;left:${x}px;top:${y}px;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;background:radial-gradient(circle,rgba(60,40,35,.85),rgba(30,20,20,.5) 60%,transparent 72%);pointer-events:none;opacity:0;z-index:27`);
+  const smoke = fxEl(`position:absolute;left:${x}px;top:${y}px;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;background:radial-gradient(circ
+le,rgba(60,40,35,.85),rgba(30,20,20,.5) 60%,transparent 72%);pointer-events:none;opacity:0;z-index:27`);
   anim(smoke, [{ opacity: 0, transform: "translateY(0) scale(.3)" }, { opacity: 0.9, transform: "translateY(-30px) scale(1)", offset: 0.4 }, { opacity: 0, transform: "translateY(-110px) scale(1.5)" }], { duration: 1200, delay: 120, fill: "backwards", easing: "ease-out" }).then(() => smoke.remove());
   burst(x, y, { n: 90, color: ["#fff", "#ffd36a", "#ff8a2a", "#c0392b"], speed: 11, size: 6, life: 900 });
   burst(x, y, { n: 50, color: ["#5a4636", "#3a2c24", "#8a7a68"], speed: 8, size: 7, life: 1100, grav: 0.12 });
@@ -2329,7 +2470,7 @@ function hitJuice(kind, color) {
 }
 /* ---------- 궁극기 충돌 (연타전) ---------- */
 let noCut = false;
-const CLASH_STYLE = { yeon: "lightning", warrior: "fire", archmage: "fire", hero: "holy", healer: "holy", darkwizard: "dark", wizard: "magic", "orc-captain": "magic", "orc-berserker": "fire", "orc-general": "fire", dragon: "fire" };
+const CLASH_STYLE = { gunner: "bullet", yeon: "lightning", warrior: "fire", archmage: "fire", hero: "holy", healer: "holy", darkwizard: "dark", wizard: "magic", "orc-captain": "magic", "orc-berserker": "fire", "orc-general": "fire", dragon: "fire" };
 function isUltNext(m) {
   if (m instanceof RivalBoss) return m.nextMove() === "ult";
   if (m instanceof UltimateDragon) return m.nextIsBreath();
@@ -2366,6 +2507,7 @@ function clashStyleFx(style, col, from, c, parent) {
   else if (style === "holy") burst(x, y, { n: 3, color: ["#fff", col, "#fff3b0"], speed: 1.6, size: 4, life: 700, grav: -0.03 });
   else if (style === "dark") burst(x, y, { n: 3, color: [col, "#0a3a1a", "#b6ffcb"], speed: 2, size: 4, life: 600, grav: -0.02 });
   else if (style === "lightning") arcFx(from, c, col, parent);
+  else if (style === "bullet") burst(x, y, { n: 4, color: ["#ffe27a", "#fff", "#ff9a2a"], speed: 3.5, size: 3, life: 300 });
   else burst(x, y, { n: 3, color: [col, "#fff"], speed: 2.4, size: 3, life: 480, grav: 0.02 });
 }
 function ultClash(info, rate) {
@@ -2420,7 +2562,8 @@ function ultClash(info, rate) {
           const dt = Math.min(250, now - (last || now)); last = now;
           let lam = (rate * dt * (1 + 0.25 * Math.sin(now * 0.004))) / 1000;
           while (lam > 0) { if (Math.random() < Math.min(1, lam)) ec++; lam -= 1; }
-          target = Math.max(0.06, Math.min(0.94, 0.5 + (pc - ec) * 0.02));
+          target = Math.max(0.06, Math.min(0.94, 0.
+5 + (pc - ec) * 0.02));
           if (now - tStart > T || target >= 0.94 || target <= 0.06) { done = true; finish(); }
         }
       }
@@ -2493,8 +2636,8 @@ async function playerTurn(kind) {
   else if (kind === "potion") {
     potions--;
     await potionFx(() => {
-      player.heal(300);
-      log(`🧪 고급 힐링 포션을 사용했습니다! HP +300 회복 (남은 포션: ${potions}개)`, "good");
+      const hp = potionHeal(); player.heal(hp);
+      log(`🧪 고급 힐링 포션을 사용했습니다! HP +${hp} 회복 (남은 포션: ${potions}개)`, "good");
       log(`${player.name}의 현재 HP: ${player.hp}`, "good");
     });
   }
@@ -2573,11 +2716,12 @@ function endGame() {
 
 /* ---------- 자유 모험 (클리어 후 컨텐츠) ---------- */
 let townStory = false, gold = 0, mode = "story", towerFloor = 1, towerBest = 0, raidId = "dragon", shopBuys = {}, raidTier = { dragon: 0, rival: 0 }, rewardDone = () => {};
+const potionHeal = () => Math.round(Math.min(0.9, 0.45 + player.level * 0.03) * player.maxHp) + 80;
 const goldFor = (m) => Math.max(5, Math.round(m.expReward * 0.6));
 const grow = () => GROWTH[player.key] || { hp: 20, atk: 5, def: 3 };
 const SHOP = [
-  { id: "potion", icon: "🧪", name: "힐링 포션", desc: () => "포션 +1 (HP +300)", base: 60, step: 0, fn: () => { potions += 1; } },
-  { id: "potion5", icon: "🧪", name: "포션 5개 팩", desc: () => "포션 +5 (묶음 할인)", base: 250, step: 0, fn: () => { potions += 5; } },
+  { id: "potion", icon: "🧪", name: "힐링 포션", desc: () => `포션 +1 (현재 HP +${potionHeal()} · 레벨에 따라 증가)`, base: 60, step: 0, fn: () => { potions += 1; } },
+  { id: "potion5", icon: "🧪", name: "포션 5개 팩", desc: () => `포션 +5 (묶음 할인 · 개당 HP +${potionHeal()})`, base: 250, step: 0, fn: () => { potions += 5; } },
   { id: "hp", icon: "❤️", name: "체력 단련", desc: () => `최대 HP +${Math.round(grow().hp * 1.2)}`, base: 150, step: 0.3, fn: () => { const n = Math.round(grow().hp * 1.2); player.maxHp += n; player._hp += n; } },
   { id: "atk", icon: "🗡️", name: "공격 단련", desc: () => `공격력 +${Math.round(grow().atk * 0.9)}`, base: 150, step: 0.3, fn: () => { player.atk += Math.round(grow().atk * 0.9); } },
   { id: "def", icon: "🛡️", name: "방어 단련", desc: () => `방어력 +${Math.round(grow().def * 1.2)}`, base: 150, step: 0.3, fn: () => { player.def += Math.round(grow().def * 1.2); } },
@@ -2586,7 +2730,8 @@ const SHOP = [
 ];
 const shopPrice = (it) => Math.round(it.base * (1 + it.step * (shopBuys[it.id] || 0)));
 const RAIDS = [
-  { id: "dragon", icon: "🐉", name: "파멸의 절멸룡 레이드", desc: (t) => `보호막 · 회피 · 치유 · 브레스를 모두 쓰는 전설의 용. 클리어 ${t}회 · 보상 💰${1200 + t * 500}G + 전설 장비` },
+  { id: "dragon", icon: "🐉", name: "파멸의 절멸룡 레이드", desc: (t) => `보호막 · 회피 · 치유 · 브레스를 모
+두 쓰는 전설의 용. 클리어 ${t}회 · 보상 💰${1200 + t * 500}G + 전설 장비` },
   { id: "rival", icon: "⚔️", name: "라이벌 레이드", desc: (t) => `무작위 라이벌 캐릭터가 강화되어 등장합니다. 클리어 ${t}회 · 보상 💰${900 + t * 400}G + 전설 장비` },
 ];
 function makeRaid(id) {
@@ -2679,6 +2824,7 @@ const JOBS = [
   { k: "wizard", n: "마법사", s: "HP 90 · 공격 36 · 방어 9", d: "붉은 섬광으로 마나를 모으는 마법학교 출신. 스투페파이는 공격력 3.5배, 궁극기 봄바르다 맥시마는 방어를 무시하는 ×8 대폭발." },
   { k: "healer", n: "힐러", s: "HP 100 · 공격 15 · 방어 10", d: "빛의 화살로 마나 +15 회복. 치유로 HP 40 회복, 궁극기는 HP 완전 회복과 공격력 +15." },
   { k: "darkwizard", n: "흑마법사", s: "HP 90 · 공격 36 · 방어 9", d: "크루시오로 적의 방어를 깎고 마나를 모은다. 호크룩스로 1회 부활, 궁극기는 아바다 케다브라(즉사)." },
+  { k: "gunner", n: "총잡이", s: "HP 120 · 공격 36 · 방어 11", d: "온갖 총기를 다루는 총잡이. 권총으로 탄약을 모으고, RPG로 폭발시키고, 탄약이 가득 차면 미니건을 난사한다." },
   { k: "archmage", n: "대마법사", s: "HP 130 · 공격 34 · 방어 12", d: "마나 120의 지혜로운 대마법사. 불꽃의 채찍은 ×3.4와 불꽃 장막, 궁극기 엑스펠리아르무스는 방어를 완전히 무시하는 ×14 일격과 적의 공격력을 절반으로 깎는 무장 해제." },
   { k: "yeon", n: "이연 (구미호 신)", s: "HP 10000 · 공격 10000 · 방어 10000", d: "세계관 최강자. 발도 일격으로 신력을 모아 여우구슬을 터뜨리고, 신력이 가득 차면 번개를 검에 받아 불꽃을 두르고 베어버린다." },
   { k: "hero", n: "영웅", s: "HP 200 · 공격 80 · 방어 60", d: "좋은 기본 스탯. 공격할 때마다 마나가 15 회복된다." },
@@ -2693,7 +2839,7 @@ function buildSetup() {
   ].map((g) => `<button class="pick legend" type="button" data-r="${g[0]}"><span class="gi">${g[1]}<b>${g[2]}</b></span><span class="desc">${g[3]}</span></button>`).join("");
   $("#title-bg").innerHTML = bgHTML(THEMES[0], 3);
   $("#title-dragon").innerHTML = ART.dragon({ body: "#241226", dk: "#0d060f", belly: "#33183a", wing: "#1a0c20", horn: "#4a3550", eye: "#ffb347", rune: false });
-  $("#title-cast").innerHTML = ["warrior", "wizard", "healer", "darkwizard", "archmage", "yeon", "hero"].map((k) => `<div>${ART[k]()}</div>`).join("");
+  $("#title-cast").innerHTML = ["warrior", "wizard", "healer", "darkwizard", "gunner", "archmage", "yeon", "hero"].map((k) => `<div>${ART[k]()}</div>`).join("");
 }
 
 /* ---------- 이벤트 ---------- */
@@ -2710,7 +2856,8 @@ $("#btn-shop-back").addEventListener("click", () => { sfx.ui(); backToHub(); });
 $("#btn-raid-back").addEventListener("click", () => { sfx.ui(); backToHub(); });
 $("#btn-restart").addEventListener("click", () => { sfx.ui(); show("setup"); });
 $("#reward-picks").addEventListener("click", (e) => { const b = e.target.closest("[data-r]"); if (b) pickReward(b.dataset.r); });
-$("#a-attack").addEventListener("click", () => act("attack"));
+$("#a-attack").addEventL
+istener("click", () => act("attack"));
 $("#a-special").addEventListener("click", () => act("special"));
 $("#a-ult").addEventListener("click", () => act("ult"));
 $("#a-potion").addEventListener("click", () => act("potion"));
