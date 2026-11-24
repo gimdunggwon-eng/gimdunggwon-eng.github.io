@@ -10,6 +10,14 @@ Python과 로컬 AI를 이용해 직접 개발하고 있는 개인용 AI 비서 
 
 음성으로 명령을 내리고, AI가 응답하며, 직접 음성으로 말하는 나만의 JARVIS를 만드는 것이 목표야.
 
+### 브라우저 HUD 미리 보기
+
+Windows 비서 화면에서 영감을 받은 인터랙티브 웹 프로토타입을 만들었어. 슈트 홀로그램, 시스템 상태 패널, 채팅 화면을 브라우저에서 살펴볼 수 있어.
+
+> 웹 미리 보기의 시스템 수치와 대화 응답은 데모용이야. 실제 Windows 상태, Ollama, 마이크에는 연결되어 있지 않아.
+
+[🖥️ JARVIS HUD 열기](projects/jarvis-demo.html) · [📖 개발 기록 보기](projects/jarvis.md) · [소스 코드](https://github.com/gimdunggwon-eng/gimdunggwon-eng.github.io/tree/main/JARVIS-OS)
+
 ### 주요 기능
 
 - Ollama 기반 로컬 AI 모델 연결
