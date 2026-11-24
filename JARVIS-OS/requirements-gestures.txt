@@ -1,0 +1,2 @@
+# Optional; installed separately because it adds camera and ML dependencies.
+mediapipe>=1.2,<2
